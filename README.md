@@ -41,3 +41,11 @@ Centro del servo (`SERVO_FRENTE`, `SERVO_IZQ`, `SERVO_DER`), velocidades inicial
 - Medidor de batería (dos resistencias de 10 kΩ en A2; `HAY_MEDIDOR_BATERIA`)
 - Cargador de la batería de 2 celdas
 - Giroscopio (MPU-6050) para ir derecho
+
+
+## Traspaso
+
+Estado, cableado, parámetros calibrados, pendientes y el plan para dar de alta Roli en el panel: ver [`TRASPASO.md`](TRASPASO.md).
+
+- `pruebas/`: Arduino simulado (g++) para verificar los niveles 1 a 6 y los mapas de pines. Ver `pruebas/LEEME.md`.
+- `docs/fuente/`: fuentes de los PDFs (hoy desactualizados). Ver `docs/fuente/LEEME.md`.
