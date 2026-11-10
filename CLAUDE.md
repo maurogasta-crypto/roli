@@ -17,3 +17,4 @@ Robot Arduino UNO para enseñar programación a niños. Código del Arduino (`fi
 - El `.ino` entregado es el que Mauro calibró en el robot: no se pisan sus valores de servo, velocidades, empujón ni zigzag.
 - Archivos completos, nunca diffs.
 - Si cambia el cableado o un comando, cambian en el mismo cambio el `README.md` y los documentos de `docs/`.
+- Las actividades para los chicos y la lista de compras viven en el panel (`roli.html` y `roli.js` de `maurogasta-crypto/datos`). Si cambia una palabra del firmware, cambia `roli.js` en la misma tanda.
