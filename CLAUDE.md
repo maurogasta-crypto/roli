@@ -17,12 +17,12 @@ Robot Arduino UNO para enseñar programación a niños. Código del Arduino (`fi
 | `firebaseConfig.*` | identifica `roli-467a4` ante la API web; **no da permisos** | público por diseño | `firebase-init.js` (única copia) | todo el sitio |
 | Contraseña de cada persona | entrar | dato en runtime | Firebase Authentication de `roli-467a4` | `index.html` |
 | UID de Mauro y del agente | lo que comparan `esMauro()` y `esAgente()` | configuración | marcadores `TU-UID-ACA` y `UID-DEL-AGENTE` en `firestore.rules`; los valores, en el panel (`proyectos/roli`) | Firestore |
-| Contraseña del usuario del agente | que un chat lea la base | dato en runtime | variables de entorno de Claude Code (`FB_ROLI_MAIL`, `FB_ROLI_CLAVE`), cargadas por Mauro | `datos/herramientas/firestore.mjs` |
+| Contraseña del usuario del agente | que un chat lea la base | dato en runtime | variables de entorno de Claude Code (`FB_AGENTE_*` o `FB_PANEL_*`, las mismas de las otras bases), cargadas por Mauro | `datos/herramientas/firestore.mjs` |
 
 Un UID real, una contraseña o el nombre de un chico no entran a este repositorio (es público).
 
 - **Lo que se carga al jugar es lo sensible, y va a la base** (14-nov-2026, Mauro): `jugar.html` pide login y guarda `jugadores` (nombre, edad, nota) y `partidas` (equipo, rondas, estrellas, medidas) en `roli-467a4`. **Nada de eso en `localStorage`** (el banco lo comprueba); en `sessionStorage` sólo qué pasos de preparación se tildaron. Los juegos y los roles son de `roli.js` del panel y se traen al abrir. La puerta (login y ficha) es `acceso.js`, compartida con `index.html`.
-- **El agente entra a esta base con el usuario de las otras** (cae a `FB_PANEL_*` si no hay `FB_ROLI_*`); `usuarios` está sellada para él.
+- **El agente entra a esta base con el usuario de las otras** (cae a `FB_PANEL_*` si no hay `FB_ROLI_*`); puede leer todo, y escribe como una persona con ficha (la ficha `usuarios/` la escribe sólo Mauro).
 
 ## Al trabajar en este repo
 
