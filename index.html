@@ -79,6 +79,7 @@ function vCal() {
   $("cuerpo").innerHTML = '<div class="tarj"><h2>Guardar una calibración</h2><p class="gris" style="margin:.1rem 0">Pegá lo que imprime <code>calibrar exportar</code> (o el archivo de <code>laptop/calibraciones/</code>).</p>'
     + '<textarea id="t" placeholder="=== CALIBRACION DE ROLI ===&#10;VEL_IZQ_INICIAL 92&#10;..."></textarea><label for="n">Nota (opcional)</label><input id="n" maxlength="300" placeholder="Con piso de baldosa, baterías cargadas">'
     + '<div id="prev" class="gris"></div><button class="p" id="g">Guardar</button></div><div class="tarj"><h2>Las últimas</h2><div id="lista"></div></div>';
+  if (location.hash === "#calibraciones") $("t").focus();   // la consola abre el sitio acá: pegar y listo
   $("t").oninput = () => {
     const c = R.leerCalibracion($("t").value), d = R.diferencias(c.valores);
     $("prev").innerHTML = Object.keys(c.valores).length ? "Entiendo " + Object.keys(c.valores).length + " valores" + (d.length ? "; distintos del cero: " + d.map((x) => R.esc(x.k + " " + x.antes + "→" + x.ahora)).join(", ") : "; igual al cero") + (c.ignoradas.length ? " · ignoré " + c.ignoradas.length + " líneas" : "") : "";

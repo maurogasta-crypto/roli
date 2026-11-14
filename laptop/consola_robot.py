@@ -11,6 +11,10 @@ si cambiaste algo, la consola ofrece guardar la lista de valores en laptop/calib
 texto) para llevarla al chat y reajustar el programa del robot por USB. Tambien la guarda sola cuando
 escribis  calibrar exportar.
 
+Sesion de calibracion: escribi  sesion  y la consola te guia (derecho, arranque, giro), guarda en el robot y
+copia la lista para pegarla en «Calibraciones» del sitio. Despues,  sitio  abre la pagina y  copiar  vuelve a
+copiar la ultima lista.
+
 Uso:
     ~/ble-env/bin/python consola_robot.py                  # MAC por defecto
     ~/ble-env/bin/python consola_robot.py 2C:4C:8D:D7:61:C4
@@ -156,7 +160,8 @@ async def sesion(mac):
         ruta = recibido.agregar(texto)
         if ruta:
             estado["cambio"] = False
-            print(f"\n[Guarde la lista de calibracion en {ruta}: llevala al chat para reajustar a Roli]", flush=True)
+            print(f"\n[Guarde la lista de calibracion en {ruta}. Escribi  sitio  para llevarla al sitio, o llevala al chat para reajustar a Roli]", flush=True)
+            calibracion.copiar_al_portapapeles(recibido.ultimo)
 
     print(f"Buscando {mac} ... (el celular debe estar desconectado del modulo)")
     try:
@@ -180,7 +185,7 @@ async def sesion(mac):
                 await client.start_notify(car, al_recibir)
             except Exception as error:  # el modulo podria no avisar respuestas
                 print(f"(No pude escuchar al robot: {error}. Igual podes mandarle ordenes.)")
-            print("Conectado. Escribi una orden y Enter. Probá: hola   |  ayuda  |  teclado  |  salir")
+            print("Conectado. Escribi una orden y Enter. Probá: hola   |  ayuda  |  teclado  |  sesion (calibrar)  |  salir")
 
             loop = asyncio.get_running_loop()
             while client.is_connected:
@@ -195,6 +200,15 @@ async def sesion(mac):
                     return "salir"
                 if calibracion.cambia_calibracion(texto):
                     estado["cambio"] = True
+                if texto.lower() in ("sesion", "calibrar sesion", "sesion calibrar"):
+                    try:
+                        await calibracion.sesion_guiada(robot, recibido, estado)
+                    except Exception:
+                        return "caida"
+                    continue
+                if texto.lower() in ("sitio", "copiar"):
+                    calibracion.llevar_al_sitio(recibido.ultimo, abrir_pagina=texto.lower() == "sitio")
+                    continue
                 if texto.lower() == "teclado":
                     await modo_teclado(robot)
                     continue

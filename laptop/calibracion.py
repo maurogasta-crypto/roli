@@ -6,11 +6,15 @@ laptop/calibraciones/ y se lo puede llevar al chat para reajustar el programa de
 """
 import asyncio
 import os
+import shutil
+import subprocess
 import time
+import webbrowser
 
 INICIO = "=== CALIBRACION DE ROLI"
 FIN = "=== FIN ==="
 CARPETA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calibraciones")
+SITIO = "https://maurogasta-crypto.github.io/roli/#calibraciones"
 # las palabras que CAMBIAN la calibracion (ver, recto y exportar no)
 CAMBIAN = ("velocidad", "kick", "ender", "zigzag", "giro", "cero", "guardar")
 
@@ -75,6 +79,7 @@ class Recibido:
     def __init__(self):
         self.buffer = ""
         self.guardadas = []
+        self.ultimo = ""          # el texto de la ultima lista completa (para copiarla al sitio)
 
     def agregar(self, texto, carpeta=CARPETA, ahora=None):
         """Devuelve la ruta del archivo si con este trozo se completo una lista; si no, None."""
@@ -84,6 +89,7 @@ class Recibido:
         if bloque is None:
             return None
         ruta = guardar(bloque, carpeta, ahora)
+        self.ultimo = bloque
         self.guardadas.append(ruta)
         return ruta
 
@@ -120,3 +126,143 @@ async def ofrecer(robot, recibido, estado, pedir=None, espera=0.25, intentos=40)
             return "guardada"
     print("\nNo llego la lista completa. Proba de nuevo con:  calibrar exportar")
     return "incompleta"
+
+
+# ───────────── Llevar la lista al sitio (14-nov-2026) ─────────────
+# El sitio de Roli (index.html, detras de un login) tiene «Calibraciones»: se pega la lista y se guarda en la base.
+# La consola no tiene ninguna clave del sitio: copia la lista al portapapeles y abre la pagina; pegar y guardar
+# lo hace la persona, con su propia cuenta.
+COPIADORES = (("wl-copy",), ("xclip", "-selection", "clipboard"), ("xsel", "--clipboard", "--input"))
+
+
+def copiar_al_portapapeles(texto, hay=shutil.which, ejecutar=subprocess.run):
+    """Copia `texto` con lo que tenga la laptop (Wayland o X11). Devuelve el nombre de la herramienta, o None."""
+    for cmd in COPIADORES:
+        if hay(cmd[0]):
+            try:
+                ejecutar(list(cmd), input=texto.encode("utf-8"), timeout=5, check=True)
+                return cmd[0]
+            except Exception:
+                continue
+    return None
+
+
+def llevar_al_sitio(texto, abrir_pagina=True, copiar=copiar_al_portapapeles, abrir=webbrowser.open, decir=print):
+    """Copia la lista y (si se pide) abre el sitio. Siempre dice que hacer a continuacion. Devuelve (copiado, abierto)."""
+    if not texto.strip():
+        decir("Todavia no hay ninguna lista: pedila con  calibrar exportar.")
+        return False, False
+    herramienta = copiar(texto)
+    abierto = False
+    if abrir_pagina:
+        try:
+            abierto = bool(abrir(SITIO))
+        except Exception:
+            abierto = False
+    if herramienta:
+        decir("Copie la lista. En el sitio: entra, abri «Calibraciones», pega (Ctrl+V) y toca «Guardar».")
+    else:
+        decir("No pude copiarla sola (falta wl-copy, xclip o xsel). Abri el archivo, copia todo y pegalo en el sitio:")
+        decir(texto)
+    if abrir_pagina and not abierto:
+        decir("El sitio: " + SITIO)
+    return bool(herramienta), abierto
+
+
+# ───────────── La sesion de calibracion guiada ─────────────
+INTRO = """
+=== SESION DE CALIBRACION ===
+Roli sobre el piso, con 2 metros libres adelante y alguien al lado para mirarlo.
+Se prueba que vaya derecho, que arranque bien y (si tiene el nivel 6) que gire justo.
+Al final se guarda en el robot y se lleva la lista al sitio. En cualquier pregunta:  x  para cortar.
+"""
+CERO_GOLPES = 4
+
+
+async def sesion_guiada(robot, recibido, estado, pedir=None, esperar=None, copiar=copiar_al_portapapeles, abrir=webbrowser.open, decir=print):
+    """Guia una calibracion completa. `robot.enviar(texto)`; `pedir(pregunta)` es una corrutina que lee una letra
+    (por defecto input() en un hilo); `esperar(segundos)` tambien. Devuelve 'guardada', 'sin_guardar' o 'cortada'."""
+    loop = asyncio.get_running_loop()
+    if pedir is None:
+        async def pedir(p):
+            return await loop.run_in_executor(None, input, p)
+    if esperar is None:
+        esperar = asyncio.sleep
+
+    async def preguntar(p, validas):
+        while True:
+            try:
+                r = (await pedir(p)).strip().lower()
+            except EOFError:
+                return "x"
+            if r[:1] in validas or r[:1] == "x":
+                return r[:1]
+            decir("  (elegi una de: " + ", ".join(validas) + ", o x para cortar)")
+
+    async def mandar(orden, pausa=0.6):
+        await robot.enviar(orden)
+        if orden.split()[0] in ("calibrar", "desvio") and orden.split()[1:2] not in (["ver"], ["recto"], ["exportar"]):
+            estado["cambio"] = True
+        await esperar(pausa)
+
+    decir(INTRO)
+    await mandar("calibrar ver", 1.5)
+
+    # 1 · derecho
+    for _ in range(8):
+        await mandar("calibrar recto", 3.5)
+        r = await preguntar("¿Como fue?  [d] derecho  [i] se fue a la izquierda  [r] se fue a la derecha  [o] otra vez  > ", "dirso")
+        if r == "x":
+            return "cortada"
+        if r == "d":
+            break
+        if r == "i":
+            await mandar("desvio izq")
+        elif r == "r":
+            await mandar("desvio der")
+        # «o»: se repite sin cambiar nada
+
+    # 2 · arranque (la rueda loca)
+    golpes = CERO_GOLPES
+    for _ in range(4):
+        r = await preguntar("¿Arranca con la rueda loca derecha?  [s] si  [m] hacer mas golpes  [p] menos golpes  > ", "smp")
+        if r == "x":
+            return "cortada"
+        if r == "s":
+            break
+        golpes = min(10, golpes + 2) if r == "m" else max(0, golpes - 2)
+        await mandar(f"calibrar ender {golpes}")
+        await mandar("calibrar recto", 3.5)
+
+    # 3 · giro (opcional: hace falta el nivel 6)
+    r = await preguntar("¿Calibrar el giro de 90 grados? (hace falta el nivel 6)  [s] si  [n] no  > ", "sn")
+    if r == "x":
+        return "cortada"
+    if r == "s":
+        for _ in range(6):
+            await mandar("girar der 90", 2.5)
+            r = await preguntar("¿Giro justo?  [j] justo  [m] giro de menos de 90  [p] se paso  > ", "jmp")
+            if r == "x":
+                return "cortada"
+            if r == "j":
+                break
+            await mandar("calibrar giro mas" if r == "m" else "calibrar giro menos")
+
+    # 4 · guardar en el robot y llevar la lista al sitio
+    r = await preguntar("¿Guardo esta calibracion en el robot (sobrevive al apagado)?  [s] si  [n] no  > ", "sn")
+    if r in ("x", "n"):
+        decir("Quedo sin guardar: si apagas a Roli, vuelve a lo de antes.")
+        return "sin_guardar"
+    await mandar("calibrar guardar", 1.0)
+    antes = len(recibido.guardadas)
+    await robot.enviar("calibrar exportar")
+    for _ in range(40):
+        await esperar(0.25)
+        if len(recibido.guardadas) > antes:
+            break
+    else:
+        decir("No llego la lista completa. Proba despues con:  calibrar exportar")
+        return "guardada"
+    estado["cambio"] = False
+    llevar_al_sitio(recibido.ultimo, True, copiar, abrir, decir)
+    return "guardada"

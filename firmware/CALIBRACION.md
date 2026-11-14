@@ -30,7 +30,18 @@
 
 Un valor fuera de rango se rechaza y no cambia nada. Un programa grabado (`programa … fin`) **no puede calibrar**.
 
-## Una sesión de calibración
+## La sesión guiada (14-nov-2026): `sesion`
+
+En la consola de la laptop escribí **`sesion`** y ella te guía, sin que tengas que acordarte de las órdenes:
+
+1. **Derecho:** Roli avanza 2 segundos y te pregunta cómo fue (`d` derecho, `i` se fue a la izquierda, `r` a la derecha, `o` otra vez). Corrige solo con `desvio izq` o `desvio der` y repite.
+2. **Arranque:** ¿la rueda loca queda derecha? Si no, `m` hace más golpes (`calibrar ender 6`, 8…) y `p` menos.
+3. **Giro (opcional, nivel 6):** gira 90° y te pregunta si fue justo, de menos o se pasó (`calibrar giro mas` / `menos`).
+4. **Guardar:** pregunta si lo guarda en el robot (`calibrar guardar`), pide la lista, la guarda en `laptop/calibraciones/`, **la copia al portapapeles y abre el sitio** en «Calibraciones».
+
+En el sitio (con tu cuenta): pegás con Ctrl+V y tocás «Guardar». La consola no tiene ninguna clave del sitio: lo último lo hace una persona. Con `x` en cualquier pregunta se corta sin guardar nada en el robot. Después, `sitio` vuelve a abrir la página y `copiar` vuelve a copiar la última lista. Necesita `wl-copy`, `xclip` o `xsel` para copiar (si no hay, la consola muestra la lista para copiarla a mano).
+
+## Una sesión de calibración (a mano)
 
 1. `calibrar ver` y `calibrar recto`. ¿Se fue de lado? `desvio izq` o `desvio der`, y `calibrar recto` otra vez, hasta que vaya derecho.
 2. Mirar el arranque: ¿la rueda loca queda derecha? Si no, `calibrar ender 6` (más golpes) o `calibrar ender 4 200 80` (más fuertes). `calibrar ender 0` para probar sin ellos.

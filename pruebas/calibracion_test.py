@@ -100,5 +100,93 @@ class AlSalir(unittest.TestCase):
         self.assertEqual(r, "incompleta"); self.assertEqual(os.listdir(tmp), []); self.assertTrue(estado["cambio"])
 
 
+
+class FalsoRobot:
+    """Anota lo que se le manda; si le piden la lista, «contesta» con ella."""
+    def __init__(self, recibido, tmp):
+        self.enviado, self.recibido, self.tmp = [], recibido, tmp
+
+    async def enviar(self, texto):
+        self.enviado.append(texto)
+        if texto == "calibrar exportar":
+            self.recibido.agregar(LISTA, self.tmp)
+
+
+def correr_sesion(respuestas, copiar=None, abrir=None):
+    rec, tmp, estado = C.Recibido(), tempfile.mkdtemp(), {"cambio": False}
+    robot, res, dicho, copiado, abierto = FalsoRobot(rec, tmp), list(respuestas), [], [], []
+
+    async def pedir(_):
+        if not res:
+            raise AssertionError("la sesion pregunto de mas")
+        return res.pop(0)
+
+    async def nada(_):
+        return None
+
+    resultado = asyncio.run(C.sesion_guiada(
+        robot, rec, estado, pedir, nada,
+        copiar or (lambda t: copiado.append(t) or "wl-copy"), abrir or (lambda u: abierto.append(u) or True), dicho.append))
+    return resultado, robot.enviado, estado, copiado, abierto, dicho, res
+
+
+class Sesion(unittest.TestCase):
+    def test_sesion_completa_corrige_el_desvio_guarda_y_lleva_la_lista_al_sitio(self):
+        # se fue a la izquierda, despues derecho; arranque bien; sin giro; guardar
+        r, env, estado, copiado, abierto, _, sobra = correr_sesion(["i", "d", "s", "n", "s"])
+        self.assertEqual(r, "guardada"); self.assertEqual(sobra, [])
+        self.assertEqual(env, ["calibrar ver", "calibrar recto", "desvio izq", "calibrar recto", "calibrar guardar", "calibrar exportar"])
+        self.assertFalse(estado["cambio"])
+        self.assertEqual(len(copiado), 1); self.assertIn("VEL_DER_INICIAL 86", copiado[0]); self.assertEqual(abierto, [C.SITIO])
+
+    def test_mas_golpes_menos_golpes_y_el_giro(self):
+        r, env, *_ = correr_sesion(["d", "m", "m", "s", "s", "m", "j", "s"])
+        self.assertEqual(r, "guardada")
+        self.assertIn("calibrar ender 6", env); self.assertIn("calibrar ender 8", env)
+        self.assertEqual(env[env.index("girar der 90") + 1], "calibrar giro mas")
+        r, env, *_ = correr_sesion(["d", "p", "s", "n", "n"])
+        self.assertIn("calibrar ender 2", env); self.assertNotIn("calibrar guardar", env)
+
+    def test_cortar_con_x_no_guarda_nada_en_el_robot(self):
+        r, env, estado, copiado, abierto, *_ = correr_sesion(["d", "x"])
+        self.assertEqual(r, "cortada"); self.assertNotIn("calibrar guardar", env); self.assertEqual(copiado, []); self.assertEqual(abierto, [])
+
+    def test_no_guardar_deja_el_aviso_y_los_cambios_marcados(self):
+        r, env, estado, copiado, _, dicho, _ = correr_sesion(["r", "d", "s", "n", "n"])
+        self.assertEqual(r, "sin_guardar"); self.assertTrue(estado["cambio"]); self.assertEqual(copiado, [])
+        self.assertTrue(any("sin guardar" in x.lower() for x in dicho))
+
+    def test_una_respuesta_rara_se_vuelve_a_preguntar(self):
+        r, env, _, _, _, dicho, sobra = correr_sesion(["q", "d", "s", "n", "s"])
+        self.assertEqual(r, "guardada"); self.assertEqual(sobra, []); self.assertTrue(any("elegi una de" in x for x in dicho))
+
+    def test_ver_recto_y_exportar_no_cuentan_como_cambio(self):
+        r, env, estado, *_ = correr_sesion(["d", "s", "n", "n"])
+        self.assertTrue(r == "sin_guardar" and not estado["cambio"])
+
+
+class LlevarAlSitio(unittest.TestCase):
+    def test_copia_y_abre(self):
+        dicho = []
+        self.assertEqual(C.llevar_al_sitio(LISTA, True, lambda t: "xclip", lambda u: True, dicho.append), (True, True))
+        self.assertTrue(any("Calibraciones" in x for x in dicho))
+
+    def test_sin_herramienta_de_copiado_muestra_la_lista_para_copiarla_a_mano(self):
+        dicho = []
+        self.assertEqual(C.llevar_al_sitio(LISTA, False, lambda t: None, lambda u: True, dicho.append), (False, False))
+        self.assertIn(LISTA, dicho)
+
+    def test_sin_lista_no_hace_nada(self):
+        dicho = []
+        self.assertEqual(C.llevar_al_sitio("  ", True, lambda t: self.fail(), lambda u: self.fail(), dicho.append), (False, False))
+
+    def test_elige_la_primera_herramienta_que_hay(self):
+        llamadas = []
+        hay = lambda n: n == "xclip"
+        ej = lambda cmd, **kw: llamadas.append((cmd, kw["input"]))
+        self.assertEqual(C.copiar_al_portapapeles("hola", hay, ej), "xclip"); self.assertEqual(llamadas[0][1], b"hola")
+        self.assertIsNone(C.copiar_al_portapapeles("hola", lambda n: False, ej))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
