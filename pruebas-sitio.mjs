@@ -30,22 +30,26 @@ t("los documentos llevan exactamente los campos que dejan las reglas", () => {
   const u = { uid: "u1", nombre: "Mauro" };
   const campos = (col) => { const m = reglas.match(new RegExp("match /" + col + "/\\{id\\}[\\s\\S]*?hasOnly\\(\\[([^\\]]+)\\]")); assert.ok(m, col); return m[1].split(",").map((x) => x.trim().replace(/'/g, "")).sort(); };
   assert.deepEqual(Object.keys(R.docCalibracion(R.leerCalibracion("KICK_VEL 150"), u, 1)).sort(), campos("calibraciones"));
-  assert.deepEqual(Object.keys(R.docPartida({ juego: "j", equipo: ["a", "b"], estrellas: 3 }, u, 1)).sort(), campos("partidas"));
+  assert.deepEqual(Object.keys(R.docPartida({ juego: "j", equipo: ["a", "b"] }, u, 1)).sort(), campos("partidas"));
+  assert.deepEqual(Object.keys(R.docJugador({ nombre: "Ana" }, u, 1)).sort(), campos("jugadores"));
   assert.deepEqual(Object.keys(R.docNota({ titulo: "t", texto: "x" }, u, 1)).sort(), campos("notas"));
 });
 t("lo que no tiene sentido no se arma: calibración vacía, partida sin juego o con un solo jugador, nota sin título", () => {
   const u = { uid: "u1", nombre: "M" };
   assert.throws(() => R.docCalibracion(R.leerCalibracion("nada"), u)); assert.throws(() => R.docPartida({ equipo: ["a", "b"] }, u));
   assert.throws(() => R.docPartida({ juego: "j", equipo: ["a"] }, u)); assert.throws(() => R.docNota({ titulo: " " }, u));
-  const p = R.docPartida({ juego: "j", equipo: ["a", " ", "b"], estrellas: "x", medidas: { segundosPorMetro: "2.2", giro90: "-1" } }, u, 5);
-  assert.equal(p.estrellas, 0); assert.deepEqual(p.equipo, ["a", "b"]); assert.equal(p.medidas.segundosPorMetro, 2.2); assert.equal(p.medidas.giro90, null);
+  const p = R.docPartida({ juego: "j", equipo: ["a", " ", "b"], medidas: { segundosPorMetro: "2.2", giro90: "-1" } }, u, 5);
+  assert.equal(p.estrellas, 0); assert.equal(p.estado, "en curso"); assert.deepEqual(p.rondas, {}); assert.deepEqual(p.equipo, ["a", "b"]); assert.equal(p.medidas.segundosPorMetro, 2.2); assert.equal(p.medidas.giro90, null);
+  assert.throws(() => R.docJugador({ nombre: "  " }, u));
+  const j = R.docJugador({ nombre: "Ana María de los Ángeles Pérez", edad: "7.4", nota: "x" }, u, 5); assert.equal(j.nombre.length, 20); assert.equal(j.edad, 7); assert.equal(R.docJugador({ nombre: "A", edad: "abc" }, u).edad, null);
 });
 t("entra sólo una ficha activa", () => { assert.ok(R.puedeEntrar({ activo: true })); assert.ok(!R.puedeEntrar({ activo: "true" })); assert.ok(!R.puedeEntrar(null)); assert.ok(!R.puedeEntrar({})); });
 t("las reglas: UID sólo como marcadores, deny por defecto, nadie edita, y ninguna lectura abierta", () => {
   assert.ok(reglas.includes('"TU-UID-ACA"') && reglas.includes('"UID-DEL-AGENTE"'));
   assert.ok(!/uid == "[A-Za-z0-9]{20,}"/.test(reglas), "un UID real en las reglas");
   assert.ok(!/if true/.test(reglas), "hay una regla abierta"); assert.ok(!/match \/\{document=\*\*\}/.test(reglas));
-  for (const c of ["calibraciones", "partidas", "notas"]) assert.ok(new RegExp("match /" + c + "/\\{id\\}[\\s\\S]*?allow update: if false").test(reglas), c + " se puede editar");
+  for (const c of ["calibraciones", "notas"]) assert.ok(new RegExp("match /" + c + "/\\{id\\}[\\s\\S]*?allow update: if false").test(reglas), c + " se puede editar");
+  for (const c of ["jugadores", "partidas"]) { const b = reglas.match(new RegExp("match /" + c + "/\\{id\\} \\{([\\s\\S]*?)\\n    \\}"))[1]; assert.ok(/allow update:[\s\S]*resource\.data\.uid == request\.auth\.uid/.test(b), c + ": cualquiera la edita"); assert.ok(/request\.resource\.data\.uid == resource\.data\.uid/.test(b), c + ": cambia de dueño"); assert.ok(/allow delete: if esMauro/.test(b), c + ": borra otro"); }
   assert.ok(/match \/_historial[\s\S]*allow update, delete: if false/.test(reglas));
 });
 t("el SDK sólo se toca en firebase-init.js, diferido, y es el proyecto roli-467a4", () => {
@@ -53,13 +57,22 @@ t("el SDK sólo se toca en firebase-init.js, diferido, y es el proyecto roli-467
   assert.ok(/import\(SDK \+/.test(init) && !/^import .*gstatic/m.test(init)); assert.ok(init.includes('projectId: "roli-467a4"'));
   assert.ok(!/service_account|private_key|client_secret/i.test(init + html));
 });
-t("el JavaScript de index.html y los módulos parsean como MÓDULO", () => {
-  const s = html.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
-  for (const [n, c] of [["index.html", s], ["registro.js", leer("./registro.js")], ["firebase-init.js", init]]) {
+const jugar = leer("./jugar.html"), acceso = leer("./acceso.js");
+t("el JavaScript de index.html, jugar.html y los módulos parsean como MÓDULO", () => {
+  const sc = (h) => h.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
+  for (const [n, c] of [["index.html", sc(html)], ["jugar.html", sc(jugar)], ["registro.js", leer("./registro.js")], ["acceso.js", acceso], ["firebase-init.js", init]]) {
     try { execFileSync("node", ["--input-type=module", "--check"], { input: c, stdio: ["pipe", "pipe", "pipe"] }); } catch (e) { throw new Error(n + ": " + String(e.stderr).split("\n").slice(0, 3).join(" ")); }
   }
 });
-t("la contraseña tiene su ojo y el sitio dice que es privado", () => { assert.ok(html.includes("ojos.js")); assert.ok(html.includes('name="robots"') || html.includes("noindex")); });
+t("la contraseña tiene su ojo y el sitio dice que es privado", () => { assert.ok(acceso.includes("ojos.js") && acceso.includes(".catch(")); assert.ok(html.includes('name="robots"') || html.includes("noindex")); });
 t("hay publicación propia de Pages y no consume secretos", () => { const w = leer("./.github/workflows/pages.yml"); assert.ok(w.includes("deploy-pages") && !/secrets\./.test(w)); });
 
+t("jugar.html: pide login, guarda en la base y NO deja nombres en el navegador; los juegos son de roli.js del panel, traídos al abrir", () => {
+  assert.ok(jugar.includes("A.abrir(") && jugar.includes('addDoc(I.collection(I.db, "partidas")') && jugar.includes('addDoc(I.collection(I.db, "jugadores")'));
+  assert.ok(!/localStorage/.test(jugar + html + acceso), "usa localStorage");
+  const sess = (jugar.match(/sessionStorage\.[a-zA-Z]+\([^)]*\)/g) || []).join(" "); assert.ok(/roli_prep/.test(sess) && !/equipo|nombre|jugador/i.test(sess), "sessionStorage con datos de personas");
+  assert.ok(/import\("https:\/\/maurogasta-crypto\.github\.io\/datos\/roli\.js"\)/.test(jugar), "roli.js debe traerse diferido");
+  assert.ok(!/gstatic/.test(jugar + acceso), "toca gstatic fuera de firebase-init");
+  assert.ok(jugar.includes("roli-foto-frente.jpg") && fs.existsSync(new URL("./roli-foto-frente.jpg", import.meta.url)) && fs.existsSync(new URL("./roli-foto-arriba.jpg", import.meta.url)));
+});
 console.log(`\n${ok} pasadas, ${mal} fallidas`); process.exit(mal ? 1 : 0);

@@ -21,12 +21,15 @@ Robot Arduino UNO para enseñar programación a niños. Código del Arduino (`fi
 
 Un UID real, una contraseña o el nombre de un chico no entran a este repositorio (es público).
 
+- **Lo que se carga al jugar es lo sensible, y va a la base** (14-nov-2026, Mauro): `jugar.html` pide login y guarda `jugadores` (nombre, edad, nota) y `partidas` (equipo, rondas, estrellas, medidas) en `roli-467a4`. **Nada de eso en `localStorage`** (el banco lo comprueba); en `sessionStorage` sólo qué pasos de preparación se tildaron. Los juegos y los roles son de `roli.js` del panel y se traen al abrir. La puerta (login y ficha) es `acceso.js`, compartida con `index.html`.
+- **El agente entra a esta base con el usuario de las otras** (cae a `FB_PANEL_*` si no hay `FB_ROLI_*`); `usuarios` está sellada para él.
+
 ## Al trabajar en este repo
 
 - Se empuja a `main` directo (criterio general de Mauro, 3-nov-2026).
 - El firmware se verifica compilando contra un Arduino simulado (g++ con una cabecera `Arduino.h` mínima) para los niveles 1 a 6 y los tres `MAPA_PINES`.
 - El `.ino` entregado es el que Mauro calibró en el robot: no se pisan sus valores de servo, velocidades, empujón ni zigzag. **Salvo lo que él pide cambiar:** el 14-nov-2026 pidió «el cero» (velocidades 90/84, empujón 160, enderezado de la rueda loca) y calibrar desde el robot con `calibrar` y `desvio`, sin recargar (`firmware/CALIBRACION.md`). Si cambia un valor del cero, cambia también `firmware/calibracion_cero.txt` (el banco lo compara).
-- Antes de subir: `node pruebas-sitio.mjs` (12 casos: el registro, las reglas y que el SDK sólo se toque en `firebase-init.js`) y `bash pruebas/correr.sh` (compila los 6 niveles y los 3 mapas, corre las simulaciones y la prueba de la consola).
+- Antes de subir: `node pruebas-sitio.mjs` (13 casos: el registro, las reglas v2 y que el SDK sólo se toque en `firebase-init.js`) y `bash pruebas/correr.sh` (compila los 6 niveles y los 3 mapas, corre las simulaciones y la prueba de la consola).
 - Archivos completos, nunca diffs.
 - Si cambia el cableado o un comando, cambian en el mismo cambio el `README.md` y los documentos de `docs/`.
 - Las actividades para los chicos y la lista de compras viven en el panel (`roli.html` y `roli.js` de `maurogasta-crypto/datos`). Si cambia una palabra del firmware, cambia `roli.js` en la misma tanda.

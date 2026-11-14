@@ -55,18 +55,29 @@ export function docCalibracion({ valores, programa }, { uid, nombre, nota = "" }
   return { valores, programa: programa || "", nota: String(nota).slice(0, 300), uid, por: String(nombre || "").slice(0, 40), creado: ahora };
 }
 
-/** Una partida: el equipo, el juego y lo medido. */
-export function docPartida({ juego, equipo, estrellas, meta, medidas, nota }, { uid, nombre }, ahora = Date.now()) {
+/** Una persona que juega. Es información de personas (a veces de chicos): sólo detrás del login. */
+export function docJugador({ nombre, edad, nota }, { uid, nombre: por }, ahora = Date.now()) {
+  const n = String(nombre || "").trim();
+  if (!n) throw new Error("Falta el nombre.");
+  const e = Number(edad);
+  return { nombre: n.slice(0, 20), edad: Number.isFinite(e) && e > 0 && e < 120 ? Math.round(e) : null, nota: String(nota || "").slice(0, 200), activo: true, uid, por: String(por || "").slice(0, 40), creado: ahora };
+}
+
+/** Una partida: se crea al empezar a jugar y se va completando ronda por ronda.
+ *  `rondas`: { <idRonda>: { intentos, logrado } } · `hechos`: { "<idRonda>:<paso>": true }. */
+export function docPartida({ juego, equipo, jugadores, meta, medidas, nota }, { uid, nombre }, ahora = Date.now()) {
   const eq = (equipo || []).map((x) => String(x).trim().slice(0, 20)).filter(Boolean).slice(0, 8);
   if (!juego) throw new Error("Falta el juego.");
   if (eq.length < 2) throw new Error("El equipo necesita al menos dos personas.");
   const n = (v) => (v === "" || v == null || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : Number(v));
   return {
-    juego: String(juego).slice(0, 60), equipo: eq, estrellas: n(estrellas) ?? 0, meta: n(meta) ?? 0,
+    juego: String(juego).slice(0, 60), equipo: eq, jugadores: (jugadores || []).map((x) => String(x).slice(0, 40)).slice(0, 8),
+    estrellas: 0, meta: n(meta) ?? 0, estado: "en curso", actual: 0, rondas: {}, hechos: {},
     medidas: { velocidad: n(medidas && medidas.velocidad), segundosPorMetro: n(medidas && medidas.segundosPorMetro), giro90: n(medidas && medidas.giro90) },
-    nota: String(nota || "").slice(0, 400), uid, por: String(nombre || "").slice(0, 40), creado: ahora,
+    nota: String(nota || "").slice(0, 400), uid, por: String(por_(nombre)), creado: ahora, fin: null,
   };
 }
+const por_ = (x) => String(x || "").slice(0, 40);
 
 export function docNota({ titulo, texto }, { uid, nombre }, ahora = Date.now()) {
   const t = String(titulo || "").trim(), x = String(texto || "").trim();

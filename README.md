@@ -52,6 +52,8 @@ Estado, cableado, parámetros calibrados, pendientes y el plan para dar de alta 
 - `pruebas/`: Arduino simulado (g++) para verificar los niveles 1 a 6 y los mapas de pines. Ver `pruebas/LEEME.md`.
 - `docs/fuente/`: fuentes de los PDFs (hoy desactualizados). Ver `docs/fuente/LEEME.md`.
 
-## El registro privado (`index.html`, desde el 14-nov-2026)
+## El registro privado (`index.html`) y el juego (`jugar.html`), desde el 14-nov-2026
 
 Un sitio con login (mail y contraseña) para guardar lo que no puede ser público: las calibraciones (`calibrar exportar`), las partidas con los nombres del equipo y las notas del desarrollo. Base `roli-467a4`; reglas en `firestore.rules` (plantilla, UID como marcadores). Tener cuenta no es tener permiso: Mauro activa cada ficha en la pestaña «Personas». Banco: `node pruebas-sitio.mjs`.
+
+`jugar.html` es «A jugar con Roli»: preparar (el adulto), elegir el juego y quiénes juegan, y el tablero ronda por ronda. Los nombres, las edades y las partidas se guardan en la base (`jugadores`, `partidas`), no en el aparato. Reglas v2.

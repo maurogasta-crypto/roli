@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // firestore.rules — Reglas de la base de Roli (proyecto `roli-467a4`).
-// Versión v1 (14-nov-2026). Se prueba con `node pruebas-sitio.mjs`.
+// Versión v2 (14-nov-2026; v1 el mismo día). Se prueba con `node pruebas-sitio.mjs`.
 //
 // ESTO ES LA PLANTILLA, NO LO PUBLICADO. La autoridad es lo que está en la
 // consola de Firebase → Firestore → Reglas. Los dos UID van como MARCADORES
@@ -12,9 +12,12 @@
 //   · usuarios/{uid}: la ficha de cada persona (activo, rol, nombre). La lee
 //     su dueña o dueño y la escribe SÓLO Mauro: tener una cuenta no es tener
 //     permiso, igual que en Casa Verde y CasaYourte.
-//   · calibraciones, partidas, notas: las lee y las CREA quien tiene ficha
-//     activa (y el agente), con la forma fija de abajo y a su nombre. Nadie las
-//     edita: una corrección es un documento nuevo. Borra sólo Mauro.
+//   · calibraciones, notas: las lee y las CREA quien tiene ficha activa (y el
+//     agente), con la forma fija de abajo y a su nombre. Nadie las edita: una
+//     corrección es un documento nuevo. Borra sólo Mauro.
+//   · jugadores, partidas: lo que se carga al jugar (nombres, edades, estrellas,
+//     medidas). Las lee quien tiene ficha activa; las crea y las completa quien
+//     las empezó (o Mauro), sin cambiarles el dueño. Borra sólo Mauro.
 //   · _historial: la copia de antes de cada cambio del agente. Se crea y se
 //     lee; no se edita ni se borra nunca.
 //   · Todo lo demás: cerrado (deny por defecto, sin comodín).
@@ -49,14 +52,33 @@ service cloud.firestore {
       allow delete: if esMauro();
     }
 
+    // Quienes juegan: nombre, edad y una nota. Es información de personas (a veces de chicos):
+    // sólo se ve con ficha activa. Se puede corregir (por quien lo cargó o Mauro), no cambia de dueño.
+    match /jugadores/{id} {
+      allow read: if equipo();
+      allow create: if equipo() && mio()
+        && request.resource.data.keys().hasOnly(['nombre', 'edad', 'nota', 'activo', 'uid', 'por', 'creado'])
+        && request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() <= 20
+        && request.resource.data.creado is number;
+      allow update: if equipo() && (esMauro() || resource.data.uid == request.auth.uid)
+        && request.resource.data.uid == resource.data.uid && request.resource.data.creado == resource.data.creado
+        && request.resource.data.keys().hasOnly(['nombre', 'edad', 'nota', 'activo', 'uid', 'por', 'creado'])
+        && request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() <= 20;
+      allow delete: if esMauro();
+    }
+
+    // Una partida se crea al empezar a jugar y se va completando ronda por ronda (por quien la empezó).
     match /partidas/{id} {
       allow read: if equipo();
       allow create: if equipo() && mio()
-        && request.resource.data.keys().hasOnly(['juego', 'equipo', 'estrellas', 'meta', 'medidas', 'nota', 'uid', 'por', 'creado'])
+        && request.resource.data.keys().hasOnly(['juego', 'equipo', 'jugadores', 'estrellas', 'meta', 'medidas', 'nota', 'uid', 'por', 'creado', 'estado', 'actual', 'rondas', 'hechos', 'fin'])
         && request.resource.data.equipo is list
         && request.resource.data.equipo.size() <= 8
         && request.resource.data.creado is number;
-      allow update: if false;
+      allow update: if equipo() && (esMauro() || resource.data.uid == request.auth.uid)
+        && request.resource.data.uid == resource.data.uid && request.resource.data.creado == resource.data.creado
+        && request.resource.data.keys().hasOnly(['juego', 'equipo', 'jugadores', 'estrellas', 'meta', 'medidas', 'nota', 'uid', 'por', 'creado', 'estado', 'actual', 'rondas', 'hechos', 'fin'])
+        && request.resource.data.equipo is list && request.resource.data.equipo.size() <= 8;
       allow delete: if esMauro();
     }
 
