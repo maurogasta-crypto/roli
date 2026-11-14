@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Roli · registro privado</title>
+<meta name="theme-color" content="#0f1216">
+<style>
+  :root { --fondo:#0f1216; --panel:#171c22; --linea:#2a323b; --texto:#f1f4f7; --gris:#9aa6b2; --acento:#ffd23f; --ok:#3ddc97; --mal:#ff6b6b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--fondo); color:var(--texto); font:16px/1.45 system-ui, sans-serif; }
+  main { max-width: 46rem; margin: 0 auto; padding: .8rem 1rem 4rem; }
+  h1 { margin:.2rem 0; font-size:1.6rem; } h2 { font-size:1.15rem; margin:.2rem 0 .5rem; }
+  .gris { color:var(--gris); } .tarj { background:var(--panel); border:1px solid var(--linea); border-radius:14px; padding:.9rem 1rem; margin:.7rem 0; }
+  input, textarea, select { width:100%; min-height:48px; border-radius:10px; border:1px solid var(--linea); background:#0b0e12; color:var(--texto); padding:.5rem .7rem; font:inherit; }
+  textarea { min-height:7rem; font-family: ui-monospace, monospace; }
+  label { display:block; margin:.5rem 0 .15rem; color:var(--gris); font-size:.9rem; }
+  button { min-height:48px; border-radius:12px; border:1px solid var(--linea); background:#222a33; color:var(--texto); padding:0 1rem; font:inherit; font-weight:600; cursor:pointer; margin:.4rem .4rem 0 0; }
+  button.p { background:var(--acento); color:#1b1d21; border-color:transparent; }
+  .tabs { display:flex; gap:.4rem; margin:.6rem 0; } .tabs button { flex:1; margin:0; } .tabs button[aria-pressed="true"] { background:var(--acento); color:#1b1d21; }
+  .fila { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+  .msj { padding:.5rem .7rem; border-radius:10px; margin:.5rem 0; border:1px solid var(--linea); } .msj.mal { border-color:var(--mal); color:var(--mal); } .msj.ok { border-color:var(--ok); color:var(--ok); }
+  .item { border-top:1px solid var(--linea); padding:.6rem 0; } .item:first-child { border-top:0; }
+  code { font-family: ui-monospace, monospace; background:#0b0e12; border:1px solid var(--linea); border-radius:6px; padding:.05rem .35rem; }
+  .sello { color:var(--gris); font:.75rem ui-monospace, monospace; text-align:center; margin-top:1.5rem; }
+</style>
+</head>
+<body>
+<!--
+  index.html — el registro PRIVADO de Roli (14-nov-2026, Mauro: «la base de datos para
+  mirar todas las informaciones sensibles que se muestran sobre el desarrollo de Roli,
+  con un logueo común con mail y contraseña… una estructura similar a las otras
+  páginas»). Sin build, sin npm. La base es `roli-467a4`; el único contacto con el
+  SDK es firebase-init.js; la lógica sin DOM está en registro.js (node pruebas-sitio.mjs).
+  Sellos: index-1 · init-1 · registro-1.
+-->
+<main>
+  <h1>🤖 Roli · registro privado</h1>
+  <p class="gris" style="margin:.1rem 0">Calibraciones, partidas y notas del desarrollo. Hace falta una cuenta con permiso.</p>
+  <div id="v"></div>
+  <p class="sello" id="sello"></p>
+</main>
+<script type="module">
+import * as I from "./firebase-init.js";
+import * as R from "./registro.js";
+
+const SELLO = "index-1";
+const DATOS = "https://maurogasta-crypto.github.io/datos/";
+let _errores = null;
+import(DATOS + "errores.js").then((m) => { _errores = m; }).catch(() => {});
+import(DATOS + "ojos.js").catch(() => {});       // el ojo 👁 de las contraseñas; sin él la contraseña anda igual
+const PROPIAS = {
+  "permission-denied": "La base dijo que no: esta cuenta no tiene permiso para eso. Si es la primera vez, Mauro tiene que activar tu ficha (firestore.rules, usuarios/).",
+  "sdk-no-baja": "No se pudo cargar Firebase (los servidores de Google): suele ser falta de señal o una red que bloquea ese dominio.",
+};
+const explicar = (e) => (_errores ? _errores.explicar(e, PROPIAS) : (PROPIAS[e && e.code] || (e && e.message) || String(e)));
+const $ = (id) => document.getElementById(id);
+const v = $("v");
+$("sello").textContent = [SELLO, I.VERSION, R.VERSION].join(" · ");
+
+let user = null, ficha = null, tab = "cal", bajar = [];
+const limpiarEscuchas = () => { bajar.forEach((f) => { try { f(); } catch (e) {} }); bajar = []; };
+const aviso = (t, tipo = "mal") => { const d = document.createElement("div"); d.className = "msj " + tipo; d.textContent = t; v.prepend(d); setTimeout(() => d.remove(), 7000); };
+
+function pintarLogin(msj) {
+  limpiarEscuchas();
+  v.innerHTML = '<div class="tarj"><h2>Entrar</h2><form id="f"><label for="m">Mail</label><input id="m" type="email" autocomplete="username" required>'
+    + '<label for="c">Contraseña</label><input id="c" type="password" autocomplete="current-password" required>'
+    + '<button class="p" type="submit">Entrar</button><button type="button" id="olvide">Olvidé la contraseña</button></form>'
+    + (msj ? '<div class="msj mal">' + R.esc(msj) + "</div>" : "") + "</div>";
+  $("f").onsubmit = async (ev) => {
+    ev.preventDefault();
+    try { await I.signInWithEmailAndPassword(I.auth, $("m").value.trim(), $("c").value); } catch (e) { pintarLogin(explicar(e)); }
+  };
+  $("olvide").onclick = async () => {
+    const m = $("m").value.trim(); if (!m) return aviso("Escribí tu mail arriba y volvé a tocar.");
+    try { await I.sendPasswordResetEmail(I.auth, m); aviso("Te mandamos un mail para cambiar la contraseña.", "ok"); } catch (e) { aviso(explicar(e)); }
+  };
+}
+
+function pintarSinFicha() {
+  limpiarEscuchas();
+  v.innerHTML = '<div class="tarj"><h2>Tu cuenta todavía no tiene permiso</h2><p>Entraste como <b>' + R.esc(user.email) + '</b>. Tener cuenta no alcanza: Mauro tiene que activar tu ficha. Pasale este código:</p>'
+    + '<p><code>' + R.esc(user.uid) + '</code></p><p class="gris">(Si sos Mauro y publicaste las reglas con tu UID, podés crear tu ficha de administrador acá abajo.)</p>'
+    + '<button id="mia">Crear mi ficha de administrador</button><button id="salir">Salir</button></div>';
+  $("salir").onclick = () => I.signOut(I.auth);
+  $("mia").onclick = async () => {
+    try { await I.setDoc(I.doc(I.db, "usuarios", user.uid), { activo: true, rol: "admin", nombre: "Mauro" }); await cargarFicha(); }
+    catch (e) { aviso(explicar(e)); }
+  };
+}
+
+async function cargarFicha() {
+  try { const s = await I.getDoc(I.doc(I.db, "usuarios", user.uid)); ficha = s.exists() ? s.data() : null; }
+  catch (e) { ficha = null; }
+  if (R.puedeEntrar(ficha)) pintarApp(); else pintarSinFicha();
+}
+
+const quien = () => ({ uid: user.uid, nombre: ficha.nombre || user.email });
+const lista = (col, pintar, vacio) => {
+  const q = I.query(I.collection(I.db, col), I.orderBy("creado", "desc"), I.limit(50));
+  bajar.push(I.onSnapshot(q, (s) => { const d = s.docs.map((x) => ({ id: x.id, ...x.data() })); $("lista").innerHTML = d.length ? d.map(pintar).join("") : '<p class="gris">' + vacio + "</p>"; },
+    (e) => { $("lista").innerHTML = '<div class="msj mal">' + R.esc(explicar(e)) + "</div>"; }));
+};
+const guardarDoc = async (col, datos, ok) => { try { await I.addDoc(I.collection(I.db, col), datos); aviso(ok, "ok"); return true; } catch (e) { aviso(explicar(e)); return false; } };
+
+function pintarApp() {
+  limpiarEscuchas();
+  const admin = ficha.rol === "admin";
+  const t = (id, n) => '<button data-t="' + id + '" aria-pressed="' + (tab === id) + '">' + n + "</button>";
+  v.innerHTML = '<div class="fila"><span class="gris">Hola, <b>' + R.esc(ficha.nombre || user.email) + "</b></span><button id=\"salir\">Salir</button></div>"
+    + '<div class="tabs">' + t("cal", "🎯 Calibraciones") + t("par", "🎮 Partidas") + t("not", "📝 Notas") + (admin ? t("per", "👥 Personas") : "") + '</div><div id="cuerpo"></div>';
+  $("salir").onclick = () => I.signOut(I.auth);
+  v.querySelector(".tabs").onclick = (ev) => { const b = ev.target.closest("button[data-t]"); if (b) { tab = b.dataset.t; pintarApp(); } };
+  ({ cal: vCal, par: vPar, not: vNot, per: vPer }[tab] || vCal)();
+}
+
+function vCal() {
+  $("cuerpo").innerHTML = '<div class="tarj"><h2>Guardar una calibración</h2><p class="gris" style="margin:.1rem 0">Pegá lo que imprime <code>calibrar exportar</code> (o el archivo de <code>laptop/calibraciones/</code>).</p>'
+    + '<textarea id="t" placeholder="=== CALIBRACION DE ROLI ===&#10;VEL_IZQ_INICIAL 92&#10;..."></textarea><label for="n">Nota (opcional)</label><input id="n" maxlength="300" placeholder="Con piso de baldosa, baterías cargadas">'
+    + '<div id="prev" class="gris"></div><button class="p" id="g">Guardar</button></div><div class="tarj"><h2>Las últimas</h2><div id="lista"></div></div>';
+  $("t").oninput = () => {
+    const c = R.leerCalibracion($("t").value), d = R.diferencias(c.valores);
+    $("prev").innerHTML = Object.keys(c.valores).length ? "Entiendo " + Object.keys(c.valores).length + " valores" + (d.length ? "; distintos del cero: " + d.map((x) => R.esc(x.k + " " + x.antes + "→" + x.ahora)).join(", ") : "; igual al cero") + (c.ignoradas.length ? " · ignoré " + c.ignoradas.length + " líneas" : "") : "";
+  };
+  $("g").onclick = async () => {
+    try { const c = R.leerCalibracion($("t").value); if (c.problemas.length) throw new Error(c.problemas.join("; ")); const d = R.docCalibracion(c, { ...quien(), nota: $("n").value });
+      if (await guardarDoc("calibraciones", d, "Calibración guardada.")) { $("t").value = ""; $("n").value = ""; $("prev").textContent = ""; } } catch (e) { aviso(e.message); }
+  };
+  lista("calibraciones", (c) => { const d = R.diferencias(c.valores || {}); return '<div class="item"><b>' + R.esc(R.fecha(c.creado)) + "</b> · " + R.esc(c.por) + (c.programa ? ' · <span class="gris">' + R.esc(c.programa) + "</span>" : "")
+    + "<br>" + (d.length ? d.map((x) => "<code>" + R.esc(x.k) + " " + x.antes + "→" + x.ahora + "</code>").join(" ") : '<span class="gris">igual al cero</span>') + (c.nota ? "<br>" + R.esc(c.nota) : "") + "</div>"; }, "Todavía no hay calibraciones.");
+}
+
+function vPar() {
+  $("cuerpo").innerHTML = '<div class="tarj"><h2>Anotar una partida</h2><label for="j">Juego</label><input id="j" maxlength="60" placeholder="La misión de Roli: todos juntos">'
+    + '<label for="e">Equipo (separados por coma)</label><input id="e" placeholder="Ana, Beto, Cami"><div class="fila"><div style="flex:1"><label for="s">Estrellas</label><input id="s" type="number" min="0" inputmode="numeric"></div><div style="flex:1"><label for="mt">Meta</label><input id="mt" type="number" min="0" inputmode="numeric"></div></div>'
+    + '<div class="fila"><div style="flex:1"><label for="vv">Velocidad</label><input id="vv" type="number" inputmode="numeric"></div><div style="flex:1"><label for="sm">Seg. por metro</label><input id="sm" type="number" step="0.1" inputmode="decimal"></div><div style="flex:1"><label for="g9">Seg. giro 90°</label><input id="g9" type="number" step="0.1" inputmode="decimal"></div></div>'
+    + '<label for="no">Nota</label><input id="no" maxlength="400"><button class="p" id="g">Guardar</button></div><div class="tarj"><h2>Las últimas</h2><div id="lista"></div></div>';
+  $("g").onclick = async () => {
+    try { const d = R.docPartida({ juego: $("j").value, equipo: $("e").value.split(","), estrellas: $("s").value, meta: $("mt").value, medidas: { velocidad: $("vv").value, segundosPorMetro: $("sm").value, giro90: $("g9").value }, nota: $("no").value }, quien());
+      if (await guardarDoc("partidas", d, "Partida guardada.")) pintarApp(); } catch (e) { aviso(e.message); }
+  };
+  lista("partidas", (p) => '<div class="item"><b>' + R.esc(R.fecha(p.creado)) + "</b> · " + R.esc(p.juego) + " · ⭐ " + R.esc(p.estrellas) + (p.meta ? " de " + R.esc(p.meta) : "") + "<br>" + R.esc((p.equipo || []).join(", "))
+    + (p.medidas && p.medidas.segundosPorMetro ? '<br><span class="gris">' + R.esc(p.medidas.segundosPorMetro) + " s por metro</span>" : "") + (p.nota ? "<br>" + R.esc(p.nota) : "") + "</div>", "Todavía no hay partidas.");
+}
+
+function vNot() {
+  $("cuerpo").innerHTML = '<div class="tarj"><h2>Nueva nota</h2><label for="ti">Título</label><input id="ti" maxlength="80"><label for="tx">Texto</label><textarea id="tx" style="font-family:inherit" maxlength="2000"></textarea><button class="p" id="g">Guardar</button></div><div class="tarj"><h2>Las últimas</h2><div id="lista"></div></div>';
+  $("g").onclick = async () => { try { const d = R.docNota({ titulo: $("ti").value, texto: $("tx").value }, quien()); if (await guardarDoc("notas", d, "Nota guardada.")) pintarApp(); } catch (e) { aviso(e.message); } };
+  lista("notas", (n) => '<div class="item"><b>' + R.esc(n.titulo) + '</b> <span class="gris">' + R.esc(R.fecha(n.creado)) + " · " + R.esc(n.por) + "</span><br>" + R.esc(n.texto) + "</div>", "Todavía no hay notas.");
+}
+
+function vPer() {
+  $("cuerpo").innerHTML = '<div class="tarj"><h2>Dar permiso a alguien</h2><p class="gris" style="margin:.1rem 0">La persona crea su cuenta (Authentication) y entra una vez: ahí ve su código. Pegalo acá.</p>'
+    + '<label for="u">Código (UID)</label><input id="u" autocomplete="off"><label for="nm">Nombre</label><input id="nm" maxlength="40"><label for="r">Rol</label><select id="r"><option value="colaborador">colaborador</option><option value="admin">admin</option></select>'
+    + '<button class="p" id="g">Activar</button><button id="b">Desactivar</button></div>';
+  const poner = async (activo) => { const uid = $("u").value.trim(); if (uid.length < 10) return aviso("Falta el código de la persona.");
+    try { await I.setDoc(I.doc(I.db, "usuarios", uid), { activo, rol: $("r").value, nombre: $("nm").value.trim().slice(0, 40) }); aviso(activo ? "Activada." : "Desactivada.", "ok"); } catch (e) { aviso(explicar(e)); } };
+  $("g").onclick = () => poner(true); $("b").onclick = () => poner(false);
+}
+
+(async () => {
+  try { await I.cargarFirebase(); } catch (e) { v.innerHTML = '<div class="msj mal">' + R.esc(explicar(e)) + "</div>"; return; }
+  I.onAuthStateChanged(I.auth, (u) => { user = u; ficha = null; if (!u) pintarLogin(); else cargarFicha(); });
+})();
+</script>
+</body>
+</html>

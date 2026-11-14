@@ -1,0 +1,79 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// firestore.rules — Reglas de la base de Roli (proyecto `roli-467a4`).
+// Versión v1 (14-nov-2026). Se prueba con `node pruebas-sitio.mjs`.
+//
+// ESTO ES LA PLANTILLA, NO LO PUBLICADO. La autoridad es lo que está en la
+// consola de Firebase → Firestore → Reglas. Los dos UID van como MARCADORES
+// porque este repositorio es público: el panel (Sitios → Roli → «Copiar para
+// publicar») los reemplaza con `acceso.uids` del proyecto y arma el texto
+// completo en pantalla. Un UID real no entra nunca a este archivo.
+//
+// Lo que deciden:
+//   · usuarios/{uid}: la ficha de cada persona (activo, rol, nombre). La lee
+//     su dueña o dueño y la escribe SÓLO Mauro: tener una cuenta no es tener
+//     permiso, igual que en Casa Verde y CasaYourte.
+//   · calibraciones, partidas, notas: las lee y las CREA quien tiene ficha
+//     activa (y el agente), con la forma fija de abajo y a su nombre. Nadie las
+//     edita: una corrección es un documento nuevo. Borra sólo Mauro.
+//   · _historial: la copia de antes de cada cambio del agente. Se crea y se
+//     lee; no se edita ni se borra nunca.
+//   · Todo lo demás: cerrado (deny por defecto, sin comodín).
+// ─────────────────────────────────────────────────────────────────────────────
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function esMauro()  { return request.auth != null && request.auth.uid == "TU-UID-ACA"; }
+    function esAgente() { return request.auth != null && request.auth.uid == "UID-DEL-AGENTE"; }
+    function escribe()  { return esMauro() || esAgente(); }
+    function ficha()    { return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data; }
+    function activo()   { return request.auth != null
+                            && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+                            && ficha().activo == true; }
+    function equipo()   { return escribe() || activo(); }
+    function mio()      { return request.resource.data.uid == request.auth.uid; }
+
+    match /usuarios/{uid} {
+      allow get: if request.auth != null && (request.auth.uid == uid || escribe());
+      allow list: if escribe();
+      allow create, update, delete: if esMauro();
+    }
+
+    match /calibraciones/{id} {
+      allow read: if equipo();
+      allow create: if equipo() && mio()
+        && request.resource.data.keys().hasOnly(['valores', 'programa', 'nota', 'uid', 'por', 'creado'])
+        && request.resource.data.valores is map
+        && request.resource.data.creado is number;
+      allow update: if false;
+      allow delete: if esMauro();
+    }
+
+    match /partidas/{id} {
+      allow read: if equipo();
+      allow create: if equipo() && mio()
+        && request.resource.data.keys().hasOnly(['juego', 'equipo', 'estrellas', 'meta', 'medidas', 'nota', 'uid', 'por', 'creado'])
+        && request.resource.data.equipo is list
+        && request.resource.data.equipo.size() <= 8
+        && request.resource.data.creado is number;
+      allow update: if false;
+      allow delete: if esMauro();
+    }
+
+    match /notas/{id} {
+      allow read: if equipo();
+      allow create: if equipo() && mio()
+        && request.resource.data.keys().hasOnly(['titulo', 'texto', 'uid', 'por', 'creado'])
+        && request.resource.data.titulo is string
+        && request.resource.data.creado is number;
+      allow update: if false;
+      allow delete: if esMauro();
+    }
+
+    match /_historial/{id} {
+      allow create: if escribe();
+      allow read: if escribe();
+      allow update, delete: if false;
+    }
+  }
+}
