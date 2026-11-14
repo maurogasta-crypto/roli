@@ -6,6 +6,11 @@ Hace dos cosas:
      el robot en la pantalla.
   2) TECLADO: escribi  teclado  y manejas el robot con las flechas o WASD.
 
+Calibracion: con  calibrar ...  y  desvio izq|der  se ajusta a Roli sin cargar el programa. Al salir,
+si cambiaste algo, la consola ofrece guardar la lista de valores en laptop/calibraciones/ (un archivo de
+texto) para llevarla al chat y reajustar el programa del robot por USB. Tambien la guarda sola cuando
+escribis  calibrar exportar.
+
 Uso:
     ~/ble-env/bin/python consola_robot.py                  # MAC por defecto
     ~/ble-env/bin/python consola_robot.py 2C:4C:8D:D7:61:C4
@@ -22,6 +27,7 @@ import termios
 import time
 import tty
 
+import calibracion
 from bleak import BleakClient, BleakScanner
 from bleak.exc import BleakBluetoothNotAvailableError
 
@@ -141,8 +147,16 @@ async def sesion(mac):
     """Una conexion con Roli. Devuelve 'salir', 'caida', 'no_encontrado' o 'sin_adaptador'."""
     decodificador = codecs.getincrementaldecoder("utf-8")(errors="replace")
 
+    recibido = calibracion.Recibido()
+    estado = {"cambio": False}
+
     def al_recibir(_, datos):
-        print(decodificador.decode(bytes(datos)), end="", flush=True)
+        texto = decodificador.decode(bytes(datos))
+        print(texto, end="", flush=True)
+        ruta = recibido.agregar(texto)
+        if ruta:
+            estado["cambio"] = False
+            print(f"\n[Guarde la lista de calibracion en {ruta}: llevala al chat para reajustar a Roli]", flush=True)
 
     print(f"Buscando {mac} ... (el celular debe estar desconectado del modulo)")
     try:
@@ -173,10 +187,14 @@ async def sesion(mac):
                 try:
                     texto = await loop.run_in_executor(None, input, "roli> ")
                 except EOFError:
+                    await calibracion.ofrecer(robot, recibido, estado)
                     return "salir"
                 texto = texto.strip()
                 if texto.lower() in ("salir", "exit", "quit"):
+                    await calibracion.ofrecer(robot, recibido, estado)
                     return "salir"
+                if calibracion.cambia_calibracion(texto):
+                    estado["cambio"] = True
                 if texto.lower() == "teclado":
                     await modo_teclado(robot)
                     continue

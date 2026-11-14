@@ -8,7 +8,7 @@
 
    NIVEL 1  Hablar:      hola, di, led, parpadear, ayuda
    NIVEL 2  Moverse:     adelante, atras, izquierda, derecha, parar
-   NIVEL 3  Tiempo:      adelante 2 (segundos), velocidad 150
+   NIVEL 3  Tiempo:      adelante 2 (segundos), velocidad 150, calibrar, desvio
    NIVEL 4  Programas:   programa ... fin, listar, ejecutar, esperar
    NIVEL 5  Ojos:        distancia, escanear, mirar, proteccion
    NIVEL 6  Decidir:     cuando obstaculo <orden>, explorar
@@ -17,6 +17,13 @@
    - Cable USB    (Monitor Serie del Arduino IDE, 9600 baudios, "Nueva linea")
    - Bluetooth    (modulo BLE en los pines 11 y 12, con consola_robot.py)
   Contesta siempre por el mismo camino por el que le hablaron.
+
+  CALIBRAR SIN VOLVER A CARGAR EL PROGRAMA (nivel 3 en adelante):
+   calibrar ver | recto | velocidad 90 84 | kick 160 | ender 4 | zigzag 12 | giro mas
+   desvio izq | desvio der      (le cuentas hacia donde se fue y el se corrige)
+   calibrar guardar             (lo deja en la memoria del robot, sobrevive al apagado)
+   calibrar exportar            (imprime una lista de texto para llevar al chat)
+   calibrar cero                (vuelve a los valores de fabrica, el "cero")
 
   Escribir las ordenes SIN tildes y sin importar mayusculas/minusculas.
   Las comas de los decimales sirven:  adelante 0,5
@@ -49,6 +56,10 @@
 // Si una rueda gira al reves de lo esperado, pone true en esa rueda.
 const bool INVERTIR_IZQ = false;
 const bool INVERTIR_DER = false;
+
+#if NIVEL >= 3
+#include <EEPROM.h>                // la calibracion se puede guardar en el robot
+#endif
 
 // ---------- Pines ----------
 SoftwareSerial miBT(11, 12);       // 11 = RX (recibe), 12 = TX (envia)
@@ -132,19 +143,47 @@ void ok(const char* palabra) {
 #if NIVEL >= 2
 char mov = 'S';                    // S=parado F=adelante B=atras L=izquierda R=derecha
 unsigned long movInicio = 0, movFin = 0;
-const int VEL_IZQ_INICIAL = 95, VEL_DER_INICIAL = 88;   // velocidad agradable probada en Roli
-// Empujon de arranque: al empezar a retroceder o girar desde parado, durante KICK_MS
-// usa mas fuerza (KICK_VEL, manteniendo la proporcion izq/der) para vencer la rueda loca.
-const int KICK_VEL = 200;                // 60 a 255. Mas alto = arranque mas fuerte
-const unsigned long KICK_MS = 150UL;     // cuanto dura el empujon
+
+// ---------------------------------------------------------------------------
+//  EL CERO: la calibracion de fabrica de Roli (14-nov-2026)
+// ---------------------------------------------------------------------------
+// Estos numeros son el punto de partida. Se pueden cambiar SIN cargar el programa con
+// "calibrar ..." y guardar con "calibrar guardar". "calibrar exportar" imprime esta misma lista
+// con estos MISMOS nombres, para llevarla al chat y reajustar el programa por USB.
+// "calibrar cero" vuelve a estos valores.
+const int VEL_IZQ_INICIAL = 90, VEL_DER_INICIAL = 84;   // la rueda derecha rinde distinto: esta diferencia compensa el desvio medido
+// Arranque desde cero: al empezar a moverse desde parado, durante KICK_MS usa KICK_VEL
+// (manteniendo la proporcion izq/der) para vencer la inercia y la rueda loca.
+const int KICK_VEL = 160;                       // 60 a 255
+const unsigned int KICK_MS = 150;               // 0 a 500
+// Enderezado de la rueda loca: al empezar a ir derecho (adelante o atras), despues del empujon,
+// da ENDEREZAR_GOLPES golpes cortos y bruscos, una rueda fuerte y la otra suelta, alternando
+// izquierda y derecha, para forzar a la rueda loca a ponerse derecha. 0 = sin golpes.
+const byte ENDEREZAR_GOLPES = 4;                // 0 a 10
+const int ENDEREZAR_FUERZA = 160;               // 60 a 255
+const unsigned int ENDEREZAR_MS = 60;           // duracion de cada golpe, 20 a 200
+const unsigned int ENDEREZAR_PAUSA_MS = 60;     // entre golpe y golpe va a la velocidad normal, 0 a 300
+// Zigzag suave mientras va derecho (despues del enderezado): las ruedas se alternan un poco.
+const int ZIG_DELTA = 12;                       // 0 a 30. Mas alto = zigzag mas marcado
+const int ZIG_PULSO = 45;                       // potencia extra del golpe cada tanto (0 = sin golpes), 0 a 100
+const int GIRO_MS_POR_GRADO = 8;                // cuanto tarda en girar 1 grado (nivel 6: girar, explorar), 1 a 30
+
+// Valores en uso (arrancan en el cero, o en lo guardado en el robot).
+int kickVel = KICK_VEL;
+unsigned int kickMs = KICK_MS;
+byte enderN = ENDEREZAR_GOLPES;
+int enderFuerza = ENDEREZAR_FUERZA;
+unsigned int enderMs = ENDEREZAR_MS, enderPausaMs = ENDEREZAR_PAUSA_MS;
+int zigDelta = ZIG_DELTA, zigPulso = ZIG_PULSO, giroMs = GIRO_MS_POR_GRADO;
+byte enderFase = 0;                 // 0 no, 1 golpe, 2 pausa
+byte enderK = 0;                    // cuantos golpes lleva
+unsigned long enderHasta = 0;
 unsigned long kickHasta = 0;
 // Zigzag suave: al ir derecho (o en reversa) las ruedas se alternan un poco, izq mas fuerte / der mas
 // fuerte, para que la rueda loca no se "enganche" en una direccion. En promedio va recto.
 // Ademas, cada tanto da un golpe corto de potencia a las dos ruedas para sacarla de los bordes.
 bool zigzagOn = true;                       // 'zigzag 0' lo apaga, 'zigzag 1' lo enciende
-const int ZIG_DELTA = 12;                   // diferencia entre ruedas (0 a 30). Mas alto = zigzag mas marcado
 const unsigned long ZIG_MEDIO_MS = 350UL;   // cada cuanto cambia de lado
-const int ZIG_PULSO = 45;                   // potencia extra del golpe (0 = sin golpes)
 const unsigned long ZIG_PULSO_MS = 70UL;    // duracion de cada golpe
 const unsigned long ZIG_PULSO_CADA_MS = 1500UL;  // cada cuanto
 int zigSigno = 1;
@@ -170,13 +209,15 @@ void rueda(bool izquierda, int v) {
 
 void aplicarMotores() {
   int vi = velIzq, vd = velDer;
-  if (kickHasta && mov != 'F' && mov != 'S') {       // empujon de arranque (atras y giros)
+  bool recto = (mov == 'F' || mov == 'B');
+  if (kickHasta && mov != 'S') {                     // arranque desde cero: empujon, en cualquier sentido
     int mx = (vi > vd) ? vi : vd;
-    if (mx > 0 && mx < KICK_VEL) { vi = (long)vi * KICK_VEL / mx; vd = (long)vd * KICK_VEL / mx; }
-  }
-  if (zigzagOn && (mov == 'F' || mov == 'B') && !kickHasta) {     // zigzag y golpes de potencia
-    vi += zigSigno * ZIG_DELTA; vd -= zigSigno * ZIG_DELTA;
-    if (pulsoHasta) { vi += ZIG_PULSO; vd += ZIG_PULSO; }
+    if (mx > 0 && mx < kickVel) { vi = (long)vi * kickVel / mx; vd = (long)vd * kickVel / mx; }
+  } else if (recto && enderFase == 1) {              // golpe del enderezado: una rueda fuerte, la otra suelta
+    if (enderK % 2 == 0) { vi = enderFuerza; vd = 0; } else { vi = 0; vd = enderFuerza; }
+  } else if (zigzagOn && recto && !enderFase) {      // zigzag y golpes de potencia
+    vi += zigSigno * zigDelta; vd -= zigSigno * zigDelta;
+    if (pulsoHasta) { vi += zigPulso; vd += zigPulso; }
     vi = constrain(vi, 60, 255); vd = constrain(vd, 60, 255);
   }
   switch (mov) {
@@ -188,7 +229,7 @@ void aplicarMotores() {
   }
 }
 
-void detener() { mov = 'S'; kickHasta = 0; pulsoHasta = 0; aplicarMotores(); }
+void detener() { mov = 'S'; kickHasta = 0; enderFase = 0; pulsoHasta = 0; aplicarMotores(); }
 
 // seg = 0 significa "hasta que le digas parar" (con frenado de seguridad)
 void mover(char m, float seg) {
@@ -196,7 +237,8 @@ void mover(char m, float seg) {
     detener();
     delay(80);
   }
-  kickHasta = (mov != m) ? millis() + KICK_MS : 0;   // empujon solo si arranca o cambia de sentido
+  kickHasta = (mov != m) ? millis() + kickMs : 0;   // empujon solo si arranca o cambia de sentido
+  if (mov != m) enderFase = 0;
   if (mov != m) { zigCambio = millis() + ZIG_MEDIO_MS; pulsoProximo = millis() + ZIG_PULSO_CADA_MS; pulsoHasta = 0; }
   mov = m;
   movInicio = millis();
@@ -212,19 +254,38 @@ char movimientoDe(const char* w) {
   return 0;
 }
 
+// Fin del arranque (empujon y enderezado): desde ahora corre el zigzag normal.
+void arranqueTermino(unsigned long ahora) {
+  zigCambio = ahora + ZIG_MEDIO_MS; pulsoProximo = ahora + ZIG_PULSO_CADA_MS; pulsoHasta = 0;
+}
+
 void tickMovimiento() {
   if (mov == 'S') return;
   unsigned long ahora = millis();
-  if (zigzagOn && (mov == 'F' || mov == 'B') && !kickHasta) {
+  if (kickHasta && (long)(ahora - kickHasta) >= 0) {           // fin del empujon
+    kickHasta = 0;
+    if ((mov == 'F' || mov == 'B') && enderN > 0) { enderFase = 1; enderK = 0; enderHasta = ahora + enderMs; }
+    else arranqueTermino(ahora);
+    aplicarMotores();
+  }
+  if (enderFase && (long)(ahora - enderHasta) >= 0) {          // golpes de enderezado
+    if (enderFase == 1) { enderFase = 2; enderHasta = ahora + enderPausaMs; }
+    else {
+      enderK++;
+      if (enderK >= enderN) { enderFase = 0; arranqueTermino(ahora); }
+      else { enderFase = 1; enderHasta = ahora + enderMs; }
+    }
+    aplicarMotores();
+  }
+  if (zigzagOn && (mov == 'F' || mov == 'B') && !kickHasta && !enderFase) {
     bool cambio = false;
     if ((long)(ahora - zigCambio) >= 0) { zigSigno = -zigSigno; zigCambio = ahora + ZIG_MEDIO_MS; cambio = true; }
     if (pulsoHasta && (long)(ahora - pulsoHasta) >= 0) { pulsoHasta = 0; cambio = true; }
-    if (ZIG_PULSO > 0 && !pulsoHasta && (long)(ahora - pulsoProximo) >= 0) {
+    if (zigPulso > 0 && !pulsoHasta && (long)(ahora - pulsoProximo) >= 0) {
       pulsoHasta = ahora + ZIG_PULSO_MS; pulsoProximo = ahora + ZIG_PULSO_CADA_MS; cambio = true;
     }
     if (cambio) aplicarMotores();
   }
-  if (kickHasta && (long)(ahora - kickHasta) >= 0) { kickHasta = 0; aplicarMotores(); }   // fin del empujon
   if (movFin > 0) {
     if ((long)(ahora - movFin) >= 0) detener();
   } else if (!explorando && ahora - movInicio > SEGURIDAD_MS) {
@@ -396,6 +457,8 @@ void ayuda() {
   s->println(F("velocidad 150"));
   s->println(F("velocidad izq 140"));
   s->println(F("zigzag 1 | zigzag 0"));
+  s->println(F("calibrar ver | recto | guardar"));
+  s->println(F("desvio izq | desvio der"));
 #endif
 #if NIVEL >= 4
   s->println(F("programa ... fin"));
@@ -418,12 +481,181 @@ void ayuda() {
 // ---------- Interprete de ordenes ----------
 void ejecutar(char* l, bool enPrograma);
 
+// ===========================================================
+//  NIVEL 3: CALIBRAR SIN VOLVER A CARGAR EL PROGRAMA
+// ===========================================================
+// "calibrar ..." cambia los valores del cero mientras Roli esta encendido; "calibrar guardar" los deja en
+// la memoria del robot (EEPROM) y los recupera al prender; "calibrar exportar" imprime la lista en
+// texto plano para llevarla al chat y reajustar el programa por USB; "calibrar cero" vuelve a fabrica.
+#if NIVEL >= 3
+const byte CAL_MAGIA = 0x52, CAL_VER = 1, CAL_N = 11;     // en la memoria: magia, version, 11 valores de 2 bytes, suma
+
+int calGet(byte i) {
+  switch (i) {
+    case 0: return velIzq;       case 1: return velDer;      case 2: return kickVel;     case 3: return kickMs;
+    case 4: return enderN;       case 5: return enderFuerza; case 6: return enderMs;     case 7: return enderPausaMs;
+    case 8: return zigDelta;     case 9: return zigPulso;    default: return giroMs;
+  }
+}
+void calSet(byte i, int v) {
+  switch (i) {
+    case 0: velIzq = v; break;       case 1: velDer = v; break;      case 2: kickVel = v; break;     case 3: kickMs = v; break;
+    case 4: enderN = v; break;       case 5: enderFuerza = v; break; case 6: enderMs = v; break;     case 7: enderPausaMs = v; break;
+    case 8: zigDelta = v; break;     case 9: zigPulso = v; break;    default: giroMs = v; break;
+  }
+}
+// Rangos validos: se usan al escribir una orden y al leer la memoria (si algo no cuadra, se ignora todo).
+bool calValido(byte i, long v) {
+  static const int lo[CAL_N] = {60, 60, 60,   0,  0, 60,  20,   0,  0,   0,  1};
+  static const int hi[CAL_N] = {255, 255, 255, 500, 10, 255, 200, 300, 30, 100, 30};
+  return v >= lo[i] && v <= hi[i];
+}
+byte calSuma() {
+  byte x = 0xA5;
+  for (byte a = 0; a < 2 + CAL_N * 2; a++) x ^= (byte)(EEPROM.read(a) + a);
+  return x;
+}
+void calGuardar() {
+  EEPROM.update(0, CAL_MAGIA); EEPROM.update(1, CAL_VER);
+  for (byte i = 0; i < CAL_N; i++) { int v = calGet(i); EEPROM.update(2 + i * 2, v & 0xFF); EEPROM.update(3 + i * 2, (v >> 8) & 0xFF); }
+  EEPROM.update(2 + CAL_N * 2, calSuma());
+}
+// true si habia una calibracion guardada valida y la cargo.
+bool calCargar() {
+  if (EEPROM.read(0) != CAL_MAGIA || EEPROM.read(1) != CAL_VER || EEPROM.read(2 + CAL_N * 2) != calSuma()) return false;
+  int v[CAL_N];
+  for (byte i = 0; i < CAL_N; i++) {
+    v[i] = EEPROM.read(2 + i * 2) | (EEPROM.read(3 + i * 2) << 8);
+    if (!calValido(i, v[i])) return false;
+  }
+  for (byte i = 0; i < CAL_N; i++) calSet(i, v[i]);
+  return true;
+}
+void calCero() {
+  velIzq = VEL_IZQ_INICIAL; velDer = VEL_DER_INICIAL; kickVel = KICK_VEL; kickMs = KICK_MS;
+  enderN = ENDEREZAR_GOLPES; enderFuerza = ENDEREZAR_FUERZA; enderMs = ENDEREZAR_MS; enderPausaMs = ENDEREZAR_PAUSA_MS;
+  zigDelta = ZIG_DELTA; zigPulso = ZIG_PULSO; giroMs = GIRO_MS_POR_GRADO;
+  EEPROM.update(0, 0xFF);                       // lo guardado ya no vale: al prender vuelve al cero
+}
+
+void calLinea(const __FlashStringHelper* nombre, int v) {
+  canalActual->print(nombre); canalActual->print(F(" ")); canalActual->println(v);
+}
+void calVer() {
+  Stream* s = canalActual;
+  s->println(F("Calibracion de Roli:"));
+  s->print(F("  velocidad izq ")); s->print(velIzq); s->print(F(" der ")); s->println(velDer);
+  s->print(F("  kick ")); s->print(kickVel); s->print(F(" por ")); s->print((int)kickMs); s->println(F(" ms"));
+  s->print(F("  enderezar ")); s->print((int)enderN); s->print(F(" golpes de ")); s->print(enderFuerza);
+  s->print(F(" (")); s->print((int)enderMs); s->print(F(" ms, pausa ")); s->print((int)enderPausaMs); s->println(F(" ms)"));
+  s->print(F("  zigzag ")); s->print(zigDelta); s->print(F(" golpe ")); s->println(zigPulso);
+  s->print(F("  giro ")); s->print(giroMs); s->println(F(" ms por grado"));
+}
+// La lista para llevar al chat: los mismos nombres que tiene el programa (.ino) mas las ordenes equivalentes.
+void calExportar() {
+  Stream* s = canalActual;
+  s->println(F("=== CALIBRACION DE ROLI (llevala al chat) ==="));
+  s->print(F("programa: NIVEL ")); s->print(NIVEL); s->print(F(" MAPA ")); s->print(MAPA_PINES); s->println(F(" calibrar-v1"));
+  calLinea(F("VEL_IZQ_INICIAL"), velIzq);
+  calLinea(F("VEL_DER_INICIAL"), velDer);
+  calLinea(F("KICK_VEL"), kickVel);
+  calLinea(F("KICK_MS"), kickMs);
+  calLinea(F("ENDEREZAR_GOLPES"), enderN);
+  calLinea(F("ENDEREZAR_FUERZA"), enderFuerza);
+  calLinea(F("ENDEREZAR_MS"), enderMs);
+  calLinea(F("ENDEREZAR_PAUSA_MS"), enderPausaMs);
+  calLinea(F("ZIG_DELTA"), zigDelta);
+  calLinea(F("ZIG_PULSO"), zigPulso);
+  calLinea(F("GIRO_MS_POR_GRADO"), giroMs);
+  s->println(F("para volver a poner estos valores sin cargar el programa:"));
+  s->print(F("calibrar velocidad ")); s->print(velIzq); s->print(F(" ")); s->println(velDer);
+  s->print(F("calibrar kick ")); s->print(kickVel); s->print(F(" ")); s->println((int)kickMs);
+  s->print(F("calibrar ender ")); s->print((int)enderN); s->print(F(" ")); s->print(enderFuerza); s->print(F(" ")); s->println((int)enderMs);
+  s->print(F("calibrar zigzag ")); s->print(zigDelta); s->print(F(" ")); s->println(zigPulso);
+  s->print(F("calibrar giro ")); s->println(giroMs);
+  s->println(F("calibrar guardar"));
+  s->println(F("=== FIN ==="));
+}
+// Lee un numero entero dentro de un rango; si no sirve, lo dice y devuelve false.
+bool calNum(const char* t, byte i, int &v) {
+  if (!esNumero(t)) return false;
+  long n = atol(t);
+  if (!calValido(i, n)) {
+    canalActual->println(F("ese valor esta fuera de lo permitido (proba: calibrar ver)"));
+    return false;
+  }
+  v = (int)n;
+  return true;
+}
+void calibrar(char* a1, char* p) {
+  Stream* s = canalActual;
+  char* a2 = tomar(&p);
+  char* a3 = tomar(&p);
+  int v, w, x;
+  if (!a1 || !strcmp(a1, "ver")) { calVer(); }
+  else if (!strcmp(a1, "velocidad")) {
+    if (calNum(a2, 0, v) && calNum(a3, 1, w)) { velIzq = v; velDer = w; aplicarMotores(); calVer(); }
+    else s->println(F("Usa: calibrar velocidad 90 84   (izq der)"));
+  }
+  else if (!strcmp(a1, "kick")) {
+    if (calNum(a2, 2, v)) { kickVel = v; if (esNumero(a3) && calNum(a3, 3, w)) kickMs = w; calVer(); }
+    else s->println(F("Usa: calibrar kick 160   o   calibrar kick 160 150  (fuerza, ms)"));
+  }
+  else if (!strcmp(a1, "ender")) {
+    char* a4 = tomar(&p);
+    if (calNum(a2, 4, v)) {
+      enderN = v;
+      if (esNumero(a3) && calNum(a3, 5, w)) enderFuerza = w;
+      if (esNumero(a4) && calNum(a4, 6, x)) enderMs = x;
+      calVer();
+    } else s->println(F("Usa: calibrar ender 4   o   calibrar ender 4 160 60  (golpes, fuerza, ms; 0 = sin golpes)"));
+  }
+  else if (!strcmp(a1, "zigzag")) {
+    if (calNum(a2, 8, v)) { zigDelta = v; if (esNumero(a3) && calNum(a3, 9, w)) zigPulso = w; calVer(); }
+    else s->println(F("Usa: calibrar zigzag 12   o   calibrar zigzag 12 45  (diferencia, golpe)"));
+  }
+  else if (!strcmp(a1, "giro")) {
+#if NIVEL >= 6
+    if (a2 && !strcmp(a2, "mas") && giroMs < 30) giroMs++;
+    else if (a2 && !strcmp(a2, "menos") && giroMs > 1) giroMs--;
+    else if (calNum(a2, 10, v)) giroMs = v;
+    else { s->println(F("Usa: calibrar giro mas | menos | 8   (probalo con: girar der 90)")); return; }
+    s->print(F("giro ")); s->print(giroMs); s->println(F(" ms por grado. Probalo: girar der 90"));
+#else
+    s->println(F("El giro se calibra desde el nivel 6."));
+#endif
+  }
+  else if (!strcmp(a1, "recto")) {            // prueba guiada: avanza 2 segundos y te pide que le cuentes
+    char t[] = "adelante 2";
+    ejecutar(t, false);
+    s->println(F("Fue derecho? Si se fue a la izquierda: desvio izq"));
+    s->println(F("Si se fue a la derecha: desvio der. Si fue derecho: calibrar guardar"));
+  }
+  else if (!strcmp(a1, "guardar")) { calGuardar(); s->println(F("calibracion guardada en el robot")); calVer(); }
+  else if (!strcmp(a1, "cero")) { calCero(); aplicarMotores(); s->println(F("vuelvo al cero de fabrica")); calVer(); }
+  else if (!strcmp(a1, "exportar")) { calExportar(); }
+  else s->println(F("Usa: calibrar ver | recto | velocidad | kick | ender | zigzag | giro | guardar | exportar | cero"));
+}
+// "desvio izq": Roli se fue hacia la izquierda, asi que su rueda izquierda rinde menos: le sube un poco la fuerza.
+void desvio(char* a1, char* p) {
+  Stream* s = canalActual;
+  char* a2 = tomar(&p);
+  int n = esNumero(a2) ? constrain(atoi(a2), 1, 20) : 2;
+  bool izq = a1 && a1[0] == 'i', der = a1 && a1[0] == 'd';
+  if (!izq && !der) { s->println(F("Usa: desvio izq  o  desvio der   (hacia donde se fue; opcional: cuanto, 1 a 20)")); return; }
+  int &vel = izq ? velIzq : velDer;
+  vel = constrain(vel + n, 60, 255);
+  aplicarMotores();
+  s->print(F("velocidad izq=")); s->print(velIzq); s->print(F(" der=")); s->println(velDer);
+  s->println(F("Probalo de nuevo (calibrar recto). Si va derecho: calibrar guardar"));
+}
+#endif
+
 #if NIVEL >= 6
 // ---------- EXPLORAR ----------
 // Avanza sin parar mientras el sensor barre de un lado a otro. Si algo queda cerca
 // frena, mira alrededor (7 direcciones) y se va hacia donde ve MAS LEJOS.
 // Tambien mide hacia atras (sensor trasero): si ahi hay mas lugar, da media vuelta.
-const int GIRO_MS_POR_GRADO = 8;   // cuanto tarda en girar 1 grado. Calibralo con: girar der 90
 const int BARRIDO_ABRE = 30;       // el sensor barre +-30 grados mientras avanza
 const int BARRIDO_PASO = 15;
 const int MARGEN_TRAS_FRENO = 10;  // cm extra que exige para reanudar despues de frenar
@@ -437,7 +669,7 @@ unsigned long exLimite = 0;        // 0 = sin limite
 const int IZQ_SIGNO = (SERVO_IZQ >= SERVO_FRENTE) ? 1 : -1;
 
 void girarGrados(bool izq, int grados) {
-  mover(izq ? 'L' : 'R', (float)grados * GIRO_MS_POR_GRADO / 1000.0);
+  mover(izq ? 'L' : 'R', (float)grados * giroMs / 1000.0);   // giroMs: calibralo con  calibrar giro
 }
 
 // Mira de izquierda a derecha (y hacia atras si hay sensor trasero) y anota cuanto ve
@@ -686,6 +918,12 @@ void ejecutar(char* l, bool enPrograma) {
     s->print(F("velocidad izq=")); s->print(velIzq);
     s->print(F(" der="));         s->println(velDer);
   }
+  else if (!strcmp(pal, "calibrar")) {
+    if (!enPrograma) { progEjecutando = false; explorando = false; detener(); calibrar(a1, p); }
+  }
+  else if (!strcmp(pal, "desvio")) {
+    if (!enPrograma) desvio(a1, p);
+  }
 #endif
 #if NIVEL >= 4
   else if (!strcmp(pal, "esperar")) {
@@ -838,6 +1076,9 @@ void setup() {
 #endif
   detener();
 #endif
+#if NIVEL >= 3
+  bool hayCal = calCargar();               // lo guardado con "calibrar guardar"
+#endif
 #if NIVEL >= 5
   pinMode(TRIG, OUTPUT); pinMode(ECHO, INPUT);
   if (HAY_SENSOR_TRASERO) { pinMode(TRIG2, OUTPUT); pinMode(ECHO2, INPUT); }
@@ -849,6 +1090,9 @@ void setup() {
   Serial.print(NIVEL);
   Serial.print(F(" MAPA "));
   Serial.println(MAPA_PINES);
+#if NIVEL >= 3
+  Serial.println(hayCal ? F("Calibracion guardada: cargada") : F("Calibracion: el cero de fabrica"));
+#endif
   Serial.println(F("Escribe: hola"));
 }
 

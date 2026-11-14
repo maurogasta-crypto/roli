@@ -33,16 +33,17 @@ Robot Arduino UNO que Mauro armó con sus hijos Yacko (10) y Kala (7) para apren
 
 ## 4 · Parámetros calibrados en el robot
 
-Están al principio del `.ino`. Los puso Mauro probando; **no se pisan**:
+Están al principio del `.ino`. Los puso Mauro probando; **no se pisan**, salvo lo que Mauro pide cambiar. **El 14-nov-2026 pidió «el cero»** (la fila de velocidades, el empujón, el enderezado y el zigzag de abajo) **y que se pueda calibrar desde el robot, sin volver a cargar el programa**: ver `firmware/CALIBRACION.md`.
 
 | Parámetro | Valor | Nota |
 |---|---|---|
 | `SERVO_FRENTE` / `SERVO_IZQ` / `SERVO_DER` | 80 / 140 / 20 | el centro estaba corrido a la izquierda |
-| `VEL_IZQ_INICIAL` / `VEL_DER_INICIAL` | 95 / 88 | compensa que la rueda izquierda rinde distinto |
-| `KICK_VEL` / `KICK_MS` | 200 / 150 | empujón de arranque al retroceder y girar desde parado (la rueda loca frenaba) |
+| `VEL_IZQ_INICIAL` / `VEL_DER_INICIAL` | **90 / 84** (antes 95 / 88) | el cero del 14-nov: la diferencia compensa la desviación medida |
+| `KICK_VEL` / `KICK_MS` | **160** / 150 (antes 200) | el robot arranca desde cero con un empujón; **ahora también hacia adelante** (antes sólo al retroceder y girar) |
+| `ENDEREZAR_GOLPES` / `_FUERZA` / `_MS` / `_PAUSA_MS` | **4 / 160 / 60 / 60** (nuevo) | al empezar a ir derecho (adelante o atrás), cuatro golpes cortos y bruscos alternando izquierda y derecha para forzar a la rueda loca a enderezarse. **Valores de partida sin probar en el robot**: se ajustan con `calibrar ender` |
 | `ZIG_DELTA` / `ZIG_MEDIO_MS` | 12 / 350 | zigzag suave al ir derecho o en reversa |
 | `ZIG_PULSO` / `ZIG_PULSO_MS` / `ZIG_PULSO_CADA_MS` | 45 / 70 / 1500 | golpe corto de potencia cada tanto |
-| `GIRO_MS_POR_GRADO` | 8 | **sin calibrar** con el empujón nuevo: probar `girar der 90` |
+| `GIRO_MS_POR_GRADO` | 8 | **sin calibrar**: `calibrar giro mas` / `menos` (nivel 6) después de `girar der 90` |
 | `MARGEN_TRAS_FRENO` | 10 | cm extra que exige `explorar` para reanudar |
 | `TRIG` / `ECHO` | A0 / A1 | si `distancia` siempre dice "no veo nada", se invierten |
 | `HAY_SENSOR_TRASERO` | `true` | |
@@ -57,7 +58,7 @@ Están al principio del `.ino`. Los puso Mauro probando; **no se pisan**:
 ## 6 · Pendientes de hardware y de documentación
 
 1. Probar y cerrar los dos sensores (`distancia`, `distancia atras`) y el barrido.
-2. Calibrar `GIRO_MS_POR_GRADO` con `girar der 90` y `girar izq 90`.
+2. Calibrar `GIRO_MS_POR_GRADO` con `girar der 90` y `calibrar giro mas|menos`. **Probar en el robot el cero nuevo** (90/84, kick 160, enderezado) y ajustarlo con `calibrar` y `desvio`; al final, `calibrar guardar` y `calibrar exportar` para llevar la lista al chat.
 3. Medidor de batería: divisor de dos resistencias de 10 kΩ de VIN a A2 y de A2 a GND, y poner `HAY_MEDIDOR_BATERIA = true`.
 4. Cargar las 2 celdas: el módulo TP4056 es de una sola celda (4,2 V); la batería en serie necesita cargar cada celda por separado o un cargador 2S con protección.
 5. Ir derecho de verdad: sin sensor de giro no hay forma de detectar un motor forzando. Lo que funcionaría es un **giroscopio MPU-6050** (I2C en A4/A5; habría que mover el Echo trasero a otro pin libre) o encoders. Un sensor de corriente sólo detecta trabas.

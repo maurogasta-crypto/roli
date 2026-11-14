@@ -2,6 +2,14 @@
 
 `Arduino.h` y `SoftwareSerial.h` son una cabecera mínima que deja compilar el `.ino` con `g++` en cualquier computadora. Los `sim_*.cpp` lo corren con un reloj falso y un sensor falso.
 
+## Correr todo junto
+
+```
+bash pruebas/correr.sh
+```
+
+Compila los 6 niveles y los 3 mapas, corre todas las simulaciones, prueba la parte de la consola que guarda la lista de calibración (`calibracion_test.py`, sin Bluetooth) y comprueba que `firmware/calibracion_cero.txt` diga lo mismo que el `.ino`. Termina en `TODO BIEN` o `HAY FALLOS`.
+
 ## Compilar sólo la sintaxis (niveles 1 a 6 y los tres mapas de pines)
 
 ```

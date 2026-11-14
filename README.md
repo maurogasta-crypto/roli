@@ -34,7 +34,9 @@ Robot Arduino UNO que Mauro armó con sus hijos Yacko y Kala (10 y 7 años) para
 
 ## Ajustes calibrados en el robot real
 
-Centro del servo (`SERVO_FRENTE`, `SERVO_IZQ`, `SERVO_DER`), velocidades iniciales, empujón de arranque (`KICK_VEL`), zigzag y `GIRO_MS_POR_GRADO` están al principio del `.ino`. Si se cambia algo en el robot, se actualiza acá.
+Centro del servo (`SERVO_FRENTE`, `SERVO_IZQ`, `SERVO_DER`), velocidades iniciales, empujón de arranque (`KICK_VEL`), enderezado, zigzag y `GIRO_MS_POR_GRADO` están al principio del `.ino`. Si se cambia algo en el robot, se actualiza acá.
+
+**El cero (14-nov-2026):** velocidades 90 / 84, arranque desde cero con un empujón de 160 y cuatro golpes cortos para enderezar la rueda loca (`firmware/calibracion_cero.txt`). Desde el nivel 3 se calibra **sin volver a cargar el programa**: `calibrar ver | recto | velocidad 90 84 | kick 160 | ender 4 | zigzag 12 | giro mas | guardar | exportar | cero` y `desvio izq | der`. Al final de la sesión la consola ofrece guardar en `laptop/calibraciones/` la lista de texto para llevarla al chat. Todo en `firmware/CALIBRACION.md`. Banco: `bash pruebas/correr.sh`.
 
 ## Pendiente
 
