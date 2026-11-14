@@ -8,7 +8,7 @@ Robot Arduino UNO que Mauro armó con sus hijos Yacko y Kala (10 y 7 años) para
 |---|---|
 | `firmware/roli_programa.ino` | El programa del Arduino. Seis niveles: se desbloquean cambiando `#define NIVEL` (1 a 6) |
 | `laptop/` | La consola en Python (`consola_robot.py`), `roli.sh` para abrirla y los scripts que arreglan el Bluetooth de la laptop |
-| `docs/` | El manual para Yacko y Kala y la guía de actividades del nivel 3 |
+| `docs/` | El manual para Yacko y Kala y las guías de actividades de los niveles 3 y 6 (PDF, al día con el firmware del 14-nov-2026) |
 
 ## Los seis niveles
 
@@ -50,7 +50,7 @@ Centro del servo (`SERVO_FRENTE`, `SERVO_IZQ`, `SERVO_DER`), velocidades inicial
 Estado, cableado, parámetros calibrados, pendientes y el plan para dar de alta Roli en el panel: ver [`TRASPASO.md`](TRASPASO.md).
 
 - `pruebas/`: Arduino simulado (g++) para verificar los niveles 1 a 6 y los mapas de pines. Ver `pruebas/LEEME.md`.
-- `docs/fuente/`: fuentes de los PDFs (hoy desactualizados). Ver `docs/fuente/LEEME.md`.
+- `docs/fuente/`: fuentes de los PDFs, para regenerarlos. Ver `docs/fuente/LEEME.md`.
 
 ## El registro privado (`index.html`) y el juego (`jugar.html`), desde el 14-nov-2026
 

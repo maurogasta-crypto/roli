@@ -15,8 +15,12 @@ from reportlab.platypus import (BaseDocTemplate, Frame, PageBreak, PageTemplate,
 FD = "/usr/share/fonts/truetype/dejavu/"
 pdfmetrics.registerFont(TTFont("Sans", FD + "DejaVuSans.ttf"))
 pdfmetrics.registerFont(TTFont("Sans-B", FD + "DejaVuSans-Bold.ttf"))
-pdfmetrics.registerFont(TTFont("Sans-I", FD + "DejaVuSans-Oblique.ttf"))
-pdfmetrics.registerFont(TTFont("Sans-BI", FD + "DejaVuSans-BoldOblique.ttf"))
+# Si la computadora no trae la cursiva (el paquete minimo de DejaVu no la incluye), se usa la letra recta.
+import os as _os
+_it = FD + "DejaVuSans-Oblique.ttf"
+_bi = FD + "DejaVuSans-BoldOblique.ttf"
+pdfmetrics.registerFont(TTFont("Sans-I", _it if _os.path.exists(_it) else FD + "DejaVuSans.ttf"))
+pdfmetrics.registerFont(TTFont("Sans-BI", _bi if _os.path.exists(_bi) else FD + "DejaVuSans-Bold.ttf"))
 pdfmetrics.registerFont(TTFont("Mono", FD + "DejaVuSansMono.ttf"))
 pdfmetrics.registerFont(TTFont("Mono-B", FD + "DejaVuSansMono-Bold.ttf"))
 pdfmetrics.registerFontFamily("Sans", normal="Sans", bold="Sans-B", italic="Sans-I", boldItalic="Sans-BI")

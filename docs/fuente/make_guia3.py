@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Guía de actividades del nivel 3 de Roli."""
+import os
 import sys
-sys.path.insert(0, "/home/claude/manual")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from make_manual import *  # estilos, banner, mision, img, etc.
 
 
@@ -47,14 +48,21 @@ def build(path):
                                  ("LINEBELOW", (0, 0), (-1, -2), 0.4, colors.HexColor("#BBD9D3")), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                                  ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5), ("LEFTPADDING", (0, 0), (-1, -1), 8)]))
     s += [tarjeta, Spacer(1, 6)]
-    s.append(Paragraph("Roli puede moverse entre <b>0,1 y 20 segundos</b> por orden. Cada vez que se enciende, arranca en <b>velocidad 90</b>. "
+    s.append(Paragraph("Roli puede moverse entre <b>0,1 y 20 segundos</b> por orden. Cada vez que se enciende, arranca en <b>velocidad 90</b> la rueda izquierda y <b>84</b> la derecha (es “el cero” de Roli). El arranque (un empujón y unos golpecitos) cuenta dentro del tiempo. "
                        "En el modo <font face='Mono'>teclado</font>, las teclas <b>+</b> y <b>−</b> cambian la velocidad.", small))
+    s.append(Spacer(1, 8))
+
+    s.append(P("Lo nuevo: calibrar a Roli", h2))
+    s.append(Paragraph("En este nivel Roli se puede <b>ajustar sin volver a cargar el programa</b>. <font face='Mono'>calibrar recto</font> lo hace avanzar 2 segundos para ver si va derecho; "
+                       "<font face='Mono'>desvio izq</font> y <font face='Mono'>desvio der</font> lo corrigen; <font face='Mono'>calibrar guardar</font> lo deja guardado aunque lo apaguen. "
+                       "Y <font face='Mono'>zigzag 1</font> o <font face='Mono'>zigzag 0</font> prende o apaga su movimiento chiquito para ir derecho. "
+                       "En la consola, <font face='Mono'>sesion</font> los guía paso a paso y al final <b>copia la lista para pegarla en el sitio</b>.", small))
     s.append(Spacer(1, 8))
 
     s.append(P("Para el adulto: preparar el nivel 3", h2))
     s += numbered([
         "Abrí <b>roli_programa.ino</b> y cambiá la línea <font face='Mono'>#define NIVEL 2</font> por <font face='Mono'>#define NIVEL 3</font>. Dejá <font face='Mono'>MAPA_PINES 1</font>.",
-        "Subilo con el USB. Desconectalo, encendé las baterías y abrí <font face='Mono'>./roli.sh</font>. Escribí <b>ayuda</b>: tienen que verse las palabras de velocidad.",
+        "Subilo con el USB. Desconectalo, encendé las baterías y abrí <font face='Mono'>./roli.sh</font>. Escribí <b>ayuda</b>: tienen que verse las palabras de velocidad y de calibrar.",
         "Materiales: <b>cinta de papel</b> (para marcar la salida y la llegada en el piso), <b>cinta métrica</b>, hojas y lápiz para anotar, y un lugar liso y despejado de unos 3 metros.",
         "Baterías cargadas: los resultados cambian si están flojas. Si tienen el medidor armado, anoten con <b>bateria</b> cuánto tenían al empezar.",
     ])
@@ -87,9 +95,10 @@ def build(path):
     s.append(Spacer(1, 8))
     s += mision(5, "Que vaya derecho",
                 "Hagan avanzar a Roli 2 metros marcando una línea de cinta. ¿Se va para un costado? Es normal: las ruedas no son iguales. "
-                "Frenen una rueda un poquito con <b>velocidad izq</b> o <b>velocidad der</b> y prueben otra vez hasta que vaya derecho.",
-                ["velocidad izq 90", "velocidad der 100", "adelante 3"], 2,
-                "Si se desvía a la derecha, la rueda izquierda va más rápida o la derecha más lenta. Cambien de a 5 en 5.")
+                "Díganle <b>desvio izq</b> si se fue a la izquierda (o <b>desvio der</b>) y prueben otra vez con <b>calibrar recto</b> hasta que vaya derecho. "
+                "Cuando esté bien, <b>calibrar guardar</b>.",
+                ["calibrar recto", "desvio izq", "calibrar recto", "calibrar guardar"], 2,
+                "Si prefieren hacerlo a mano: <b>velocidad izq</b> y <b>velocidad der</b>, de a 5 en 5. Y para que la laptop los guíe: <b>sesion</b>.")
     s += mision(6, "El giro exacto",
                 "¿Cuánto tiempo hay que escribir en <b>derecha</b> para que Roli gire un cuarto de vuelta (como una esquina)? Prueben con 0,3, 0,4, 0,5… hasta encontrarlo. Anoten el tiempo ganador. ¿Y para media vuelta?",
                 ["derecha 0,4", "derecha 0,5", "derecha 0,6"], 2,

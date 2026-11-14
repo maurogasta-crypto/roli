@@ -2,6 +2,14 @@
 
 `make_manual.py` arma `Roli_manual_Yacko_y_Kala.pdf` y `make_guia3.py` arma `Roli_guia_nivel3.pdf`, los dos con `reportlab` y la tipografía DejaVu. `make_pdf.py` trae los estilos y ayudas que comparten. `img/` son las fotos de Roli que usa el manual.
 
-Los scripts se escribieron con rutas de la sesión donde se hicieron (`/home/claude/pdfsrc`, `/home/claude/manual/img/`). Para regenerar, hay que cambiar esas rutas por las de esta carpeta.
+`make_guia6.py` arma `Roli_guia_nivel6.pdf` (ver, girar justo y decidir solo), con los mismos estilos que la del nivel 3.
 
-**Los PDFs están atrasados respecto del firmware.** No mencionan el sensor trasero, `explorar` con barrido y elección del camino más largo, `girar`, `zigzag` ni el empujón de arranque, y el manual dice que hay 9 pines libres. Si se regeneran, actualizar primero el texto.
+Regenerar (desde esta carpeta, sin tocar rutas; hace falta `reportlab`, `Pillow` y la letra DejaVu, y si la computadora no trae la cursiva se usa la recta):
+
+```
+python3 make_manual.py ../Roli_manual_Yacko_y_Kala.pdf
+python3 make_guia3.py  ../Roli_guia_nivel3.pdf
+python3 make_guia6.py  ../Roli_guia_nivel6.pdf
+```
+
+**Al día con el firmware del 14-nov-2026** (sensor trasero, zigzag, empujón y enderezado, `explorar`, `girar`, `calibrar`, `desvio` y la `sesion` de la consola). Lo que se escribe en la consola sale de la ayuda de `firmware/roli_programa.ino`: si cambia una palabra allá, hay que cambiar el texto acá y regenerar los PDF.

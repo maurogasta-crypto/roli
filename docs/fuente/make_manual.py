@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Manual de Roli para Yacko y Kala."""
+import os
 import sys
-sys.path.insert(0, "/home/claude/pdfsrc")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from make_pdf import *  # estilos y ayudantes
 from reportlab.platypus import Image as RLImage
 from reportlab.graphics.shapes import Drawing, Rect, String, Line, Polygon
 from PIL import Image as PILImage
 
-IMG = "/home/claude/manual/img/"
+IMG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img") + "/"
 
 
 def img(name, w=None, h=None):
@@ -243,6 +244,7 @@ def build(path):
         ["Motor derecho (L298N)", "IN3  ·  IN4", "pin 9  ·  pin 10"],
         ["L298N: ENA y ENB", "puentes (jumpers) puestos", "no van al Arduino"],
         ["Sensor HC-SR04", "Trig  ·  Echo", "A0  ·  A1 (pines analógicos, confirmado en las fotos)"],
+        ["Sensor HC-SR04 de atrás (fijo)", "Trig  ·  Echo", "A3  ·  A4 (el que mira hacia atrás, sin servo)"],
         ["Servo SG90", "señal (naranja)", "pin 3"],
         ["Electricidad hoy", "Baterías: borne 12V y GND del L298N", "en paralelo, al pin <b>VIN</b> y GND del Arduino. El Arduino saca de ahí sus 5 V para el Bluetooth, el sensor y el servo. El borne 5V del L298N queda libre"],
         ["Masa común", "GND del L298N", "GND del Arduino"],
@@ -251,10 +253,9 @@ def build(path):
     s.append(callout("OJO CON ESTAS TRES COSAS",
                      "<b>1.</b> Los puentecitos (jumpers) de ENA y ENB del L298N <b>se dejan puestos</b>, mientras los cables vayan a IN1-IN4 como hoy. "
                      "<b>2.</b> Las baterías ya entran al <b>VIN</b> del Arduino: está bien así. No conectes además el borne 5V del L298N al pin 5V (dos reguladores peleándose). Roli funciona sin USB; con el USB puesto también es seguro. "
-                     "<b>3.</b> Si Roli se reinicia solo al mover el servo, ponerle un capacitor de 470 µF entre 5V y GND, cerca del servo.",
+                     "<b>3.</b> Si Roli se reinicia solo al mover el servo, ponerle un capacitor de 470 µF entre 5V y GND, cerca del servo. Si algún motor gira al revés, la orden <b>probar</b> y los “mapas” de pines del programa lo arreglan.",
                      bg=colors.HexColor("#FDE7E4"), color=RED))
     s.append(Spacer(1, 4))
-    s.append(Paragraph("En las fotos los números de pin no se llegan a leer. Los pines de los motores salen de las pruebas que ya funcionaron (5, 6, 9 y 10) y de la foto del L298N. El programa trae una <b>prueba de ruedas</b> (la orden <b>probar</b>) y tres “mapas” de pines por si algo no coincide.", small))
     s.append(PageBreak())
 
     # ============ ADULTO: ESTA NOCHE ============
@@ -343,6 +344,39 @@ def build(path):
     s.append(callout("¿POR QUÉ SE DETIENE SOLO?", "Roli todavía no sabe cuántos segundos mover. Por eso es mucho más seguro que se frene solo. En el <b>nivel 3</b> van a poder escribir <font face='Mono'>adelante 2</font> y Roli avanza exactamente 2 segundos.", bg=MINT, color=TEAL))
     s.append(PageBreak())
 
+    # ============ ROLI SE AJUSTA (nivel 3 a 6) ============
+    s.append(banner("Roli se ajusta: calibrar", "Nivel 3 en adelante · sin volver a cargar el programa", bg=TEAL_D))
+    s.append(Spacer(1, 8))
+    s.append(P("Cómo arranca Roli", h2))
+    s += bullets([
+        "Sale con un <b>empujón</b> de fuerza (velocidad 160 durante un ratito), porque las ruedas necesitan más fuerza para empezar a moverse que para seguir.",
+        "Después da unos <b>golpecitos</b> cortos, uno con cada rueda, para que la <b>rueda loca</b> de adelante quede derecha.",
+        "Y mientras avanza hace un <b>zigzag</b> muy chiquito para no irse de costado (se apaga con <font face='Mono'>zigzag 0</font>).",
+        "Por eso <font face='Mono'>adelante 2</font> incluye el arranque: el primer ratito es el empujón y los golpecitos.",
+    ])
+    s.append(Spacer(1, 6))
+    s.append(P("Hacer la calibración", h2))
+    s.append(Paragraph("En la consola escriban <font face='Mono-B'>sesion</font>. La laptop los guía paso a paso:", kid))
+    s += numbered([
+        "<b>¿Fue derecho?</b> Roli avanza 2 segundos. Si se fue a la izquierda, escriben <b>i</b> y Roli se corrige solo (<font face='Mono'>desvio izq</font>). Repiten hasta que vaya derecho.",
+        "<b>¿Arranca bien?</b> Si la rueda loca no queda derecha, piden más golpecitos (<b>m</b>).",
+        "<b>El giro</b> (nivel 6): Roli gira 90°. ¿Justo, de menos o se pasó?",
+        "<b>Guardar:</b> la calibración queda en la memoria de Roli aunque lo apaguen, y la laptop <b>copia la lista y abre el sitio</b>.",
+    ])
+    s.append(Spacer(1, 6))
+    s.append(callout("LLEVAR LA CALIBRACIÓN AL SITIO",
+                     "Un adulto entra al sitio de Roli con su cuenta, abre <b>Calibraciones</b>, pega (Ctrl+V) y toca <b>Guardar</b>. "
+                     "Así quedan anotadas todas las calibraciones, con la fecha, y se ve qué cambió respecto del “cero” (velocidades 90 y 84). "
+                     "Si algo sale mal, <font face='Mono'>calibrar cero</font> vuelve a empezar.", bg=SAND))
+    s.append(Spacer(1, 6))
+    s.append(P("Los superpoderes del nivel 6", h2))
+    s += bullets([
+        "<b>Dos ojos:</b> el sensor de adelante (que mira para todos lados con el servo) y el de <b>atrás</b>, fijo. <font face='Mono'>distancia</font> mide adelante y <font face='Mono'>distancia atras</font> mide atrás. Al ir marcha atrás, Roli frena solo si hay algo cerca.",
+        "<b>explorar:</b> Roli avanza y el servo barre de lado a lado. Si algo queda cerca, frena, mira <b>siete direcciones</b> (y hacia atrás) y se va por donde ve más lejos. Si está todo cerca, se detiene. <font face='Mono'>explorar 60</font> explora 60 segundos.",
+        "<b>girar der 90:</b> gira los grados que le digan. Si no queda justo, se ajusta con <font face='Mono'>calibrar giro mas</font> o <font face='Mono'>menos</font>.",
+    ])
+    s.append(PageBreak())
+
     # ============ CAMINO ============
     s.append(banner("El camino de Roli: cada vez más inteligente", "Cada nivel es el mismo programa con más palabras desbloqueadas"))
     s.append(Spacer(1, 6))
@@ -353,21 +387,21 @@ def build(path):
         ["Nivel", "Roli aprende…", "Palabras nuevas", "Pieza nueva"],
         ["1", "A hablar", "hola · di · led · parpadear · ayuda", "—"],
         ["<b>2 (hoy)</b>", "A moverse", "adelante · atras · izquierda · derecha · parar · probar", "—"],
-        ["3", "Tiempo y velocidad", "adelante 2 · velocidad 150 · velocidad izq 140", "—"],
+        ["3", "Tiempo, velocidad y calibrar", "adelante 2 · velocidad 150 · zigzag · calibrar recto · desvio izq", "—"],
         ["4", "A guardar programas", "programa … fin · listar · ejecutar 3 · esperar · borrar", "—"],
-        ["5", "A ver", "distancia · escanear · mirar izq · proteccion 20", "Sensor y servo (¡ya están!)"],
-        ["6", "A decidir solo", "cuando obstaculo izquierda 1 · explorar", "—"],
+        ["5", "A ver (adelante y atrás)", "distancia · distancia atras · escanear · mirar izq · proteccion 20", "Los dos sensores y el servo (¡ya están!)"],
+        ["6", "A decidir solo", "cuando obstaculo izquierda 1 · explorar · girar der 90", "—"],
     ], [CW * 0.11, CW * 0.2, CW * 0.45, CW * 0.24]))
     s.append(Spacer(1, 10))
     s.append(P("Las misiones de cada nivel", h2))
     s.append(table([
         ["Nivel", "Ejemplo de misión", "Qué se aprende"],
         ["3", "Hacer que Roli avance exactamente hasta la pared de enfrente. Probar velocidad 100 y velocidad 220: ¿cuál llega primero?", "Un número cambia lo que hace una orden (parámetro y variable)."],
-        ["3", "Calibrar: si Roli se desvía, bajarle la velocidad a una rueda hasta que vaya derecho.", "Medir y ajustar."],
+        ["3", "Calibrar: si Roli se desvía, corregirlo con <b>desvio izq</b> o <b>desvio der</b> hasta que vaya derecho, y guardarlo con <b>calibrar guardar</b>.", "Medir y ajustar."],
         ["4", "Programar “el baile”: derecha, izquierda, esperar, y repetirlo 4 veces con <b>ejecutar 4</b>.", "Secuencia y repetición."],
         ["4", "El cuadrado: avanzar y girar 90°, repetido 4 veces, hasta que vuelva al punto de salida.", "Corregir errores (depurar)."],
         ["5", "Poner la mano delante del sensor y leer <b>distancia</b>. Después, una pared de cartón: Roli no avanza si está a menos de 20 cm.", "Un sensor mide el mundo y un umbral decide."],
-        ["6", "<b>explorar</b> en un laberinto de cajas. Después inventar una regla propia con <b>cuando obstaculo …</b>.", "“Si pasa esto, entonces hago aquello.”"],
+        ["6", "<b>explorar</b> en un laberinto de cajas: Roli avanza, mira para todos lados (y para atrás) y se va por donde ve más lejos. Después, <b>girar der 90</b> y una regla propia con <b>cuando obstaculo …</b>.", "“Si pasa esto, entonces hago aquello.”"],
     ], [CW * 0.09, CW * 0.58, CW * 0.33]))
     s.append(Spacer(1, 8))
     s.append(callout("CONTROL REMOTO DESDE LA LAPTOP",
@@ -397,13 +431,13 @@ def build(path):
         return KeepTogether([t, Spacer(1, 6)])
 
     s.append(mejora(1, "Bocina (buzzer)", "Una piecita redonda que hace “bip”.", "Roli puede avisar con sonidos: arranca con un bip y hace una alarma cuando ve un obstáculo.",
-                    "Un cable al pin <b>13</b> (o <b>A5</b> si se quiere liberar el led de la placa) y el otro a GND. Buzzer activo de 5 V.",
+                    "Un cable al pin <b>A5</b> (o al <b>13</b>, que es el led de la placa) y el otro a GND. Buzzer activo de 5 V.",
                     "<font face='Mono'>bip 2</font> · <font face='Mono'>alarma</font>", "FÁCIL"))
     s.append(mejora(2, "Luces de colores (LEDs)", "Tres LEDs (rojo, amarillo, verde) con una resistencia de 220 Ω cada uno.", "Un semáforo en Roli: verde cuando avanza, rojo cuando frena. Se ve desde lejos.",
-                    "Tres pines libres (por ejemplo <b>2, 4 y 7</b>), cada LED con su resistencia a GND.",
+                    "Tres pines libres (por ejemplo <b>2, 4 y 13</b>), cada LED con su resistencia a GND.",
                     "<font face='Mono'>luz rojo</font> · <font face='Mono'>luz verde</font> · el programa puede cambiar de color solo", "FÁCIL"))
     s.append(mejora(3, "Cuentavueltas (sensor de ranura LM393)", "Una horquilla que “ve” pasar los agujeritos del disco. ¡Los discos ya están pegados a las ruedas!", "Roli sabe cuántas vueltas dio cada rueda. Puede avanzar <b>exactamente 50 cm</b> y girar <b>exactamente 90°</b>, sin depender del tiempo ni de la batería.",
-                    "Uno por rueda: señal a dos pines libres (por ejemplo <b>A2</b> y <b>A3</b>, con interrupciones de cambio de pin), 5 V y GND. Se calibra cuántos pulsos hay en una vuelta.",
+                    "Uno por rueda: señal a dos pines libres (por ejemplo <b>7</b> y <b>8</b>, con interrupciones de cambio de pin), 5 V y GND. Se calibra cuántos pulsos hay en una vuelta.",
                     "<font face='Mono'>avanzar 50</font> (cm) · <font face='Mono'>girar 90</font> (grados)", "MEDIO"))
     s.append(mejora(4, "Seguidor de línea (2 sensores TCRT5000)", "Sensores infrarrojos mirando al piso: distinguen una línea negra sobre el piso claro.", "Roli sigue una pista dibujada con cinta aisladora negra, sin que nadie lo maneje.",
                     "Dos módulos debajo del chasis, adelante: señales a dos pines libres. 5 V y GND.",
@@ -415,9 +449,9 @@ def build(path):
                     "Del pin <b>VIN</b> a <b>A2</b> una resistencia de 10 kΩ, y de <b>A2</b> a <b>GND</b> otra de 10 kΩ. Después, en el programa, cambiar <font face='Mono'>HAY_MEDIDOR_BATERIA</font> a <font face='Mono'>true</font> y volver a subirlo.",
                     "<font face='Mono'>bateria</font>", "FÁCIL"))
     s.append(Spacer(1, 2))
-    s.append(callout("¿CUÁNTOS PINES QUEDAN?", "Roli usa el 3 (servo), 5, 6, 9 y 10 (motores), 11 y 12 (Bluetooth) y A0 y A1 (sensor). "
-                     "Quedan libres el <b>2, 4, 7, 8, 13</b> y los <b>A2 a A5</b>: 9 pines. Las seis mejoras juntas piden unos 11, así que <b>casi entran todas</b>: hay que elegir bien o sumar un expansor de pines más adelante. "
-                     "Eso también es aprender: planificar qué pieza va en cada pin antes de conectar. (La pantalla usa A4 y A5 sí o sí.)", bg=SAND))
+    s.append(callout("¿CUÁNTOS PINES QUEDAN?", "Roli usa el 3 (servo), 5, 6, 9 y 10 (motores), 11 y 12 (Bluetooth), A0 y A1 (sensor de adelante) y <b>A3 y A4 (sensor de atrás)</b>. "
+                     "Quedan libres el <b>2, 4, 7, 8, 13</b>, el <b>A2</b> y el <b>A5</b>: 7 pines. Las seis mejoras juntas piden unos 11, así que <b>no entran todas</b>: hay que elegir cuáles primero, o sumar un expansor de pines más adelante. "
+                     "Eso también es aprender: planificar qué pieza va en cada pin antes de conectar. (La pantalla usa A4 y A5 sí o sí: si se la pone, el Echo del sensor de atrás se muda a otro pin.)", bg=SAND))
     s.append(PageBreak())
 
     s.append(banner("Después: programar la laptop y el celular", "Los chicos pasan de usar el programa a escribir sus propios programas", bg=TEAL_D))

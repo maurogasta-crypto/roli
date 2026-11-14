@@ -62,7 +62,7 @@ Están al principio del `.ino`. Los puso Mauro probando; **no se pisan**, salvo 
 3. Medidor de batería: divisor de dos resistencias de 10 kΩ de VIN a A2 y de A2 a GND, y poner `HAY_MEDIDOR_BATERIA = true`.
 4. Cargar las 2 celdas: el módulo TP4056 es de una sola celda (4,2 V); la batería en serie necesita cargar cada celda por separado o un cargador 2S con protección.
 5. Ir derecho de verdad: sin sensor de giro no hay forma de detectar un motor forzando. Lo que funcionaría es un **giroscopio MPU-6050** (I2C en A4/A5; habría que mover el Echo trasero a otro pin libre) o encoders. Un sensor de corriente sólo detecta trabas.
-6. **Actualizar el manual y la guía del nivel 3** (`docs/`): no mencionan el sensor trasero, `explorar` nuevo, `girar`, `zigzag` ni el empujón. Las fuentes están en `docs/fuente/`.
+6. ~~Actualizar el manual y la guía del nivel 3~~ **Hecho el 14-nov-2026**: manual (14 páginas, con la página «Roli se ajusta: calibrar»), guía del nivel 3 y guía NUEVA del nivel 6 (`docs/`, fuentes en `docs/fuente/`). Falta que Mauro las lea en papel y diga qué cambia; `explorar`, el sensor trasero y los golpes de arranque siguen sin confirmarse en el robot.
 7. Opcional: divisor 1k/2k en el RX del BLE.
 
 ## 7 · La laptop (Bluetooth)
