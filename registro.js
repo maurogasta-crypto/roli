@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════
    registro.js — la lógica del registro privado de Roli, SIN DOM NI RED.
-   Sello: registro-1 (14-nov-2026). Se prueba con `node pruebas-sitio.mjs`.
+   Sello: registro-2 (15-nov-2026: `cambiosJugador`, para corregir a una persona). Se prueba con `node pruebas-sitio.mjs`.
 
    Lo que se guarda en la base `roli-467a4` (detrás del login):
      · calibraciones/{id}  — la lista que imprime `calibrar exportar` en el robot
@@ -10,7 +10,7 @@
    notas de desarrollo no pueden estar en un repositorio público ni en el
    navegador de la tablet.
    ═══════════════════════════════════════════════════════════════════════ */
-export const VERSION = "registro-1";
+export const VERSION = "registro-2";
 
 /* Los nombres de la calibración son los mismos que las constantes del .ino y
    los de firmware/calibracion_cero.txt: si cambia uno allá, cambia acá. */
@@ -61,6 +61,15 @@ export function docJugador({ nombre, edad, nota }, { uid, nombre: por }, ahora =
   if (!n) throw new Error("Falta el nombre.");
   const e = Number(edad);
   return { nombre: n.slice(0, 20), edad: Number.isFinite(e) && e > 0 && e < 120 ? Math.round(e) : null, nota: String(nota || "").slice(0, 200), activo: true, uid, por: String(por || "").slice(0, 40), creado: ahora };
+}
+
+/** Lo que cambia al corregir a una persona: sólo nombre, edad y nota (el dueño, la fecha y `activo` no se tocan).
+ *  Mismas reglas de forma que `docJugador`. */
+export function cambiosJugador({ nombre, edad, nota }) {
+  const n = String(nombre || "").trim();
+  if (!n) throw new Error("Falta el nombre.");
+  const e = Number(edad);
+  return { nombre: n.slice(0, 20), edad: edad !== "" && edad != null && Number.isFinite(e) && e > 0 && e < 120 ? Math.round(e) : null, nota: String(nota || "").slice(0, 200) };
 }
 
 /** Una partida: se crea al empezar a jugar y se va completando ronda por ronda.

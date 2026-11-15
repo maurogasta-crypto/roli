@@ -43,6 +43,13 @@ t("lo que no tiene sentido no se arma: calibración vacía, partida sin juego o 
   assert.throws(() => R.docJugador({ nombre: "  " }, u));
   const j = R.docJugador({ nombre: "Ana María de los Ángeles Pérez", edad: "7.4", nota: "x" }, u, 5); assert.equal(j.nombre.length, 20); assert.equal(j.edad, 7); assert.equal(R.docJugador({ nombre: "A", edad: "abc" }, u).edad, null);
 });
+t("corregir a una persona: sólo nombre, edad y nota, con la misma forma que al crearla", () => {
+  assert.deepEqual(R.cambiosJugador({ nombre: "  Kala ", edad: "8", nota: "n" }), { nombre: "Kala", edad: 8, nota: "n" });
+  assert.equal(R.cambiosJugador({ nombre: "A", edad: "" }).edad, null); assert.equal(R.cambiosJugador({ nombre: "A", edad: "abc" }).edad, null); assert.equal(R.cambiosJugador({ nombre: "A", edad: 200 }).edad, null);
+  assert.equal(R.cambiosJugador({ nombre: "Ana María de los Ángeles Pérez" }).nombre.length, 20); assert.equal(R.cambiosJugador({ nombre: "A", nota: "x".repeat(500) }).nota.length, 200);
+  assert.throws(() => R.cambiosJugador({ nombre: "   " }));
+  assert.deepEqual(Object.keys(R.cambiosJugador({ nombre: "A" })).sort(), ["edad", "nombre", "nota"]);   // nunca uid, creado ni por: las reglas los fijan
+});
 t("entra sólo una ficha activa", () => { assert.ok(R.puedeEntrar({ activo: true })); assert.ok(!R.puedeEntrar({ activo: "true" })); assert.ok(!R.puedeEntrar(null)); assert.ok(!R.puedeEntrar({})); });
 t("las reglas: UID sólo como marcadores, deny por defecto, nadie edita, y ninguna lectura abierta", () => {
   assert.ok(reglas.includes('"TU-UID-ACA"') && reglas.includes('"UID-DEL-AGENTE"'));
@@ -73,6 +80,8 @@ t("jugar.html: pide login, guarda en la base y NO deja nombres en el navegador; 
   const sess = (jugar.match(/sessionStorage\.[a-zA-Z]+\([^)]*\)/g) || []).join(" "); assert.ok(/roli_prep/.test(sess) && !/equipo|nombre|jugador/i.test(sess), "sessionStorage con datos de personas");
   assert.ok(/import\("https:\/\/maurogasta-crypto\.github\.io\/datos\/roli\.js"\)/.test(jugar), "roli.js debe traerse diferido");
   assert.ok(!/gstatic/.test(jugar + acceso), "toca gstatic fuera de firebase-init");
+  assert.ok(jugar.includes("R.cambiosJugador(") && jugar.includes('updateDoc(I.doc(I.db, "jugadores"') && jugar.includes("activo: false"), "faltan editar o sacar jugadores");
+  assert.ok(!/deleteDoc/.test(jugar), "jugar.html no borra: sacar es activo:false (borrar es sólo de Mauro)");
   assert.ok(jugar.includes("roli-foto-frente.jpg") && fs.existsSync(new URL("./roli-foto-frente.jpg", import.meta.url)) && fs.existsSync(new URL("./roli-foto-arriba.jpg", import.meta.url)));
 });
 console.log(`\n${ok} pasadas, ${mal} fallidas`); process.exit(mal ? 1 : 0);

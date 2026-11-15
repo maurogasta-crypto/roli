@@ -117,12 +117,19 @@
   .chip small { color: #a9b4bf; font-weight: 500; } .chip[aria-pressed="true"] { background: var(--rr-b); color: #0b1a14; border-color: transparent; } .chip[aria-pressed="true"] small { color: #1b4d36; }
   .panel .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .5rem; }
   .arriba .salir { margin-left: auto; min-height: 40px; border-radius: 10px; border: 1px solid rgba(255,255,255,.2); background: transparent; color: #c9d1d9; padding: 0 .9rem; cursor: pointer; }
+  /* editar o sacar a alguien de la lista de jugadores */
+  .chipw { display: inline-flex; align-items: center; gap: .25rem; }
+  .chip-ed { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.07); color: #f3f5f7; font-size: 1.1rem; cursor: pointer; padding: 0; }
+  .chip-ed[aria-pressed="true"] { border-color: var(--rr-a); background: rgba(255,210,63,.2); }
+  .edita { margin: .8rem 0 .2rem; padding: .8rem; border-radius: 16px; border: 2px solid var(--rr-a); background: rgba(255,210,63,.07); }
+  .edita h3 { margin: 0 0 .3rem; font-size: 1.1rem; }
+  .btn-grande.peligro { background: rgba(255,107,107,.16); color: #ff9b9b; border: 1px solid #ff6b6b; }
 </style>
 </head>
 <body>
 <!--
   jugar.html — «A jugar con Roli»: la pantalla de la TABLET al costado durante una ronda (14-nov-2026).
-  Sello: jugar-1. Mauro: «la información sensible va a ser sobre todo la que se ingrese cuando se empieza a jugar:
+  Sello: jugar-2 (15-nov-2026: ✏️ para editar o sacar a alguien de la lista de jugadores). Mauro: «la información sensible va a ser sobre todo la que se ingrese cuando se empieza a jugar:
   los nombres, los detalles de las personas y los datos que se vayan almacenando del juego».
 
   Por eso esta pantalla pide LOGIN y guarda en la base privada `roli-467a4` (jugadores y partidas), no en el
@@ -146,7 +153,7 @@ import * as I from "./firebase-init.js";
 import * as R from "./registro.js";
 import * as A from "./acceso.js";
 
-const SELLO = "jugar-1";
+const SELLO = "jugar-2";
 const $ = (id) => document.getElementById(id);
 const v = $("puerta"), cuerpo = $("cuerpo");
 $("sello").textContent = [SELLO, I.VERSION, R.VERSION, A.VERSION].join(" · ");
@@ -160,6 +167,7 @@ const cargarDatos = async () => {
 
 let user = null, ficha = null, fase = 1, bajar = [];
 let juegos = [], jugadores = [], partidas = [], P = null, pid = null, elegidos = new Set(), juegoElegido = "";
+let ed = null;   // la persona que se está editando: { id, nombre, edad, nota, sacando }; se guarda aparte para que un repintado de la base no borre lo escrito
 let prep = {}; try { prep = JSON.parse(sessionStorage.getItem("roli_prep") || "{}"); } catch (e) {}   // sólo qué pasos de preparación se tildaron; no es información de personas
 const guardarPrep = () => { try { sessionStorage.setItem("roli_prep", JSON.stringify(prep)); } catch (e) {} };
 const esc = R.esc, estrellas = (n) => "⭐".repeat(n) + "☆".repeat(Math.max(0, 3 - n));
@@ -208,14 +216,24 @@ function vPreparar() {
   cuerpo.innerHTML = h;
 }
 
+function vEdita() {
+  if (!ed) return "";
+  const j = jugadores.find((x) => x.id === ed.id); if (!j) { ed = null; return ""; }
+  if (ed.sacando) return '<div class="edita"><h3>🗑 ¿Sacar a ' + esc(j.nombre) + ' de la lista?</h3><p class="gris" style="margin:.2rem 0">Deja de aparecer acá. Las partidas que ya jugó no cambian, y se la puede volver a sumar desde el Registro → Jugadores.</p>'
+    + '<div class="fila"><button class="btn-grande peligro" id="edSacarSi">Sí, sacar</button><button class="btn-grande sec" id="edSacarNo">No, volver</button></div></div>';
+  return '<div class="edita"><h3>✏️ Editar a ' + esc(j.nombre) + '</h3><div class="grid"><input id="en" maxlength="20" placeholder="Nombre" aria-label="Nombre" value="' + esc(ed.nombre) + '"><input id="ee" type="number" min="1" max="99" inputmode="numeric" placeholder="Edad (opcional)" aria-label="Edad" value="' + esc(ed.edad) + '"><input id="eo" maxlength="200" placeholder="Algo para recordar (opcional)" aria-label="Nota" value="' + esc(ed.nota) + '"></div>'
+    + '<div class="fila"><button class="btn-grande" id="edGuardar">Guardar cambios</button><button class="btn-grande sec" id="edCancelar">Cancelar</button><button class="btn-grande peligro" id="edSacar">🗑 Sacar de la lista</button></div></div>';
+}
+const msjEd = (e) => (e && e.code === "permission-denied" ? "Sólo quien cargó a esta persona (o Mauro) puede cambiarla o sacarla." : e && e.message && !e.code ? e.message : A.explicar(e));
+
 function vElegir() {
   const enCurso = partidas.filter((p) => p.estado === "en curso" && (p.uid === user.uid));
   let h = "";
   if (enCurso.length) h += '<div class="panel"><h2>▶ Seguir una partida</h2>' + enCurso.slice(0, 3).map((p) => '<button class="btn-grande sec" data-seguir="' + esc(p.id) + '">' + esc(p.juego) + " · " + esc((p.equipo || []).join(", ")) + " · ronda " + ((p.actual || 0) + 1) + "</button>").join("") + "</div>";
   h += '<div class="panel"><h2>¿A qué jugamos?</h2><p class="gris" style="margin:.2rem 0">Todos son en equipo: nadie compite, juntos suman ⭐.</p><div class="juegos">'
     + D.DINAMICAS.map((d) => '<button class="juego" data-g="' + esc(d.id) + '" aria-pressed="' + (d.id === (juegoElegido || din().id)) + '"><span class="ic">' + d.ic + "</span><b>" + esc(d.titulo) + '</b><span class="m">' + esc(d.meta) + '</span><span class="tag">' + d.minutos + " min · nivel " + D.nivelDeJuego(d) + "</span></button>").join("") + "</div></div>";
-  h += '<div class="panel equipo"><h2>👥 ¿Quiénes juegan?</h2><p class="gris" style="margin:.2rem 0">Tocá a cada persona que juega (mínimo dos). Los datos quedan guardados en la base privada, no en este aparato.</p><div class="chips">'
-    + (jugadores.length ? jugadores.map((j) => '<button class="chip" data-j="' + esc(j.id) + '" aria-pressed="' + elegidos.has(j.id) + '">' + esc(j.nombre) + (j.edad ? ' <small>' + esc(j.edad) + "</small>" : "") + "</button>").join("") : '<span class="gris">Todavía no hay nadie cargado: agregá a la primera persona acá abajo.</span>') + "</div>"
+  h += '<div class="panel equipo"><h2>👥 ¿Quiénes juegan?</h2><p class="gris" style="margin:.2rem 0">Tocá a cada persona que juega (mínimo dos). Con el ✏️ corregís sus datos o la sacás de la lista. Los datos quedan guardados en la base privada, no en este aparato.</p><div class="chips">'
+    + (jugadores.length ? jugadores.map((j) => '<span class="chipw"><button class="chip" data-j="' + esc(j.id) + '" aria-pressed="' + elegidos.has(j.id) + '">' + esc(j.nombre) + (j.edad ? ' <small>' + esc(j.edad) + "</small>" : "") + '</button><button class="chip-ed" data-ed="' + esc(j.id) + '" aria-pressed="' + !!(ed && ed.id === j.id) + '" aria-label="Editar o sacar a ' + esc(j.nombre) + '" title="Editar o sacar">✏️</button></span>').join("") : '<span class="gris">Todavía no hay nadie cargado: agregá a la primera persona acá abajo.</span>') + "</div>" + vEdita()
     + '<h3 style="margin:1rem 0 .2rem;font-size:1rem">Sumar a alguien</h3><div class="grid"><input id="jn" maxlength="20" placeholder="Nombre" aria-label="Nombre"><input id="je" type="number" min="1" max="99" inputmode="numeric" placeholder="Edad (opcional)" aria-label="Edad"><input id="jo" maxlength="200" placeholder="Algo para recordar (opcional)" aria-label="Nota"></div>'
     + '<div class="fila"><button class="btn-grande sec" id="jmas">＋ Guardar y sumar al equipo</button></div></div>'
     + '<div class="panel"><button class="btn-grande" id="jugar"' + (elegidos.size >= 2 ? "" : " disabled") + ">¡A jugar! →</button>" + (elegidos.size < 2 ? '<span class="gris"> Faltan jugadores: elegí al menos dos.</span>' : "") + "</div>";
@@ -280,6 +298,10 @@ function pintar(deEscucha) {
 const irA = (f) => { fase = f; pintar(); window.scrollTo({ top: 0 }); };
 
 $("fases").addEventListener("click", (ev) => { const b = ev.target.closest("button[data-f]"); if (b) irA(+b.dataset.f); });
+cuerpo.addEventListener("input", (ev) => {
+  if (!ed) return;
+  const m = { en: "nombre", ee: "edad", eo: "nota" }[ev.target.id]; if (m) ed[m] = ev.target.value;
+});
 cuerpo.addEventListener("change", (ev) => {
   const t = ev.target, k = t.dataset;
   if (k.p) { if (t.checked) prep[k.p] = 1; else delete prep[k.p]; guardarPrep(); pintar(); return; }
@@ -297,6 +319,33 @@ cuerpo.addEventListener("click", async (ev) => {
   const k = b.dataset, id = b.id;
   if (k.f) return irA(+k.f);
   if (k.g) { juegoElegido = k.g; return pintar(); }
+  if (k.ed) {
+    if (ed && ed.id === k.ed) { ed = null; return pintar(); }
+    const j = jugadores.find((x) => x.id === k.ed); if (!j) return;
+    ed = { id: j.id, nombre: j.nombre || "", edad: j.edad == null ? "" : String(j.edad), nota: j.nota || "", sacando: false };
+    pintar(); const q = $("en"); if (q) { q.scrollIntoView({ block: "center", behavior: "smooth" }); q.focus(); } return;
+  }
+  if (id === "edCancelar") { ed = null; return pintar(); }
+  if (id === "edSacar") { ed.sacando = true; return pintar(); }
+  if (id === "edSacarNo") { ed.sacando = false; return pintar(); }
+  if (id === "edGuardar") {
+    try {
+      const c = R.cambiosJugador({ nombre: ed.nombre, edad: ed.edad, nota: ed.nota });
+      await I.updateDoc(I.doc(I.db, "jugadores", ed.id), c);
+      const j = jugadores.find((x) => x.id === ed.id); if (j) Object.assign(j, c);
+      ed = null; pintar(); A.aviso(cuerpo, "Cambios guardados.", "ok");
+    } catch (e) { A.aviso(cuerpo, msjEd(e)); }
+    return;
+  }
+  if (id === "edSacarSi") {
+    try {
+      const quitado = ed.id;
+      await I.updateDoc(I.doc(I.db, "jugadores", quitado), { activo: false });
+      elegidos.delete(quitado); jugadores = jugadores.filter((x) => x.id !== quitado);
+      ed = null; pintar(); A.aviso(cuerpo, "Listo, ya no aparece en la lista.", "ok");
+    } catch (e) { A.aviso(cuerpo, msjEd(e)); }
+    return;
+  }
   if (k.j) { if (elegidos.has(k.j)) elegidos.delete(k.j); else elegidos.add(k.j); return pintar(); }
   if (k.seguir) { pid = k.seguir; P = partidas.find((p) => p.id === pid); juegoElegido = P ? P.juego : juegoElegido; return irA(3); }
   if (k.r != null) return guarda({ actual: +k.r });
@@ -333,7 +382,7 @@ cuerpo.addEventListener("click", async (ev) => {
     user = s.user; ficha = s.ficha; v.innerHTML = ""; $("juego").hidden = false;
     $("salir").onclick = () => I.signOut(I.auth);
     escuchar(); pintar();
-  }, () => { limpiar(); $("juego").hidden = true; user = null; P = null; pid = null; });
+  }, () => { limpiar(); $("juego").hidden = true; user = null; P = null; pid = null; ed = null; });
 })();
 </script>
 </body>
