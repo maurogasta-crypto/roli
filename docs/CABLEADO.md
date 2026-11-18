@@ -15,7 +15,7 @@ mueve**: hay que subir el programa nuevo (paso 9).
 
 **Materiales:** soldador con su soporte, estaño fino, termocontraíble (o cinta aisladora),
 encendedor o pistola de calor, pela-cables (o tijera con cuidado), pinza, multímetro, cables
-dupont macho-hembra y hembra-hembra de colores, precintos, cinta de papel y marcador.
+dupont **macho-hembra** y **macho-macho** de colores (no hacen falta hembra-hembra), precintos, cinta de papel y marcador.
 
 **Reglas de la mesa (se leen en voz alta):**
 
@@ -120,10 +120,30 @@ Se practica primero con cables sueltos que sobran, hasta que salga lindo.
 Un **arnés** es un grupo de cables ya empalmados que después se enchufa de una vez. Antes de
 cortar, **presentar los cables sobre Roli** para medir el largo (que sobren 3 cm).
 
-Cada punta que va a un pin termina en un **dupont** del tipo que corresponda: macho para los
-pines del Arduino (que son agujeros), hembra para los pines de los módulos (que son patitas).
-La forma fácil: cortar un cable dupont por la mitad y empalmar a la mitad la punta que hace
-falta.
+**La regla de las puntas:** el Arduino y la ficha del servo son **agujeros** → ahí entra un
+**macho**. Los módulos (sensores, encoders, zumbador, Bluetooth) tienen **patitas** → ahí va una
+**hembra**. En los bornes de tornillo del L298N se aprieta un **macho**.
+
+Por eso **todo sale de cables macho-hembra**: la hembra en el módulo, el macho en el Arduino.
+Para un arnés se **corta un macho-hembra por la mitad**: queda una mitad con hembra (para un
+módulo) y una mitad con macho (para el Arduino). Los macho-macho son sólo para el servo.
+
+**Cuántos cables hacen falta:**
+
+| Para qué | Cable | Color | Cuántos |
+|---|---|---|---|
+| Arnés 1 (5 V): 6 hembras y 1 macho | macho-hembra, cortados | rojo | 6 |
+| Arnés 2 (GND adelante): 5 hembras y 1 macho | macho-hembra, cortados | negro | 5 |
+| Arnés 3 (GND atrás): 1 hembra y 1 macho | macho-hembra, cortado | negro | 1 |
+| Arnés 4: el «BAT» a A2 (sólo el macho) | mitad macho que sobra | cualquiera + cinta | — |
+| Trig de los dos sensores | macho-hembra enteros | blanco | 2 |
+| Echo de los dos sensores | macho-hembra enteros | gris | 2 |
+| Encoders | macho-hembra enteros | azul | 2 |
+| Bluetooth TXD / RXD | macho-hembra enteros | verde / marrón | 1 + 1 |
+| Zumbador | macho-hembra entero | violeta | 1 |
+| Servo: señal, + y − | **macho-macho** | amarillo, naranja, negro | 1 + 1 + 1 |
+
+Las mitades macho que sobran de los arneses se guardan: sirven para el «BAT» y para reponer.
 
 ### Arnés 1 · ROJO (5 V del Arduino) · 6 salidas, 5 empalmes
 
