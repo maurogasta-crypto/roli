@@ -120,7 +120,7 @@ const float R_ALTA = 10000.0, R_BAJA = 10000.0;   // ohmios (pueden ser 10k y 10
 const bool HAY_ZUMBADOR = true;
 const byte ZUMBADOR = 8;
 
-// Encoders de las ruedas (18-nov-2026): un sensor de horquilla por rueda, con el disco
+// Encoders de las ruedas (18-nov-2026): un sensor de horquilla por rueda, con el disco de 22 ranuras (22 tics por vuelta de rueda)
 // ranurado. Cada agujero que pasa es un "tic". Van en el 2 y el 3, los dos unicos pines del
 // UNO que avisan solos (interrupciones) aunque el programa este haciendo otra cosa.
 const bool HAY_ENCODERS = true;

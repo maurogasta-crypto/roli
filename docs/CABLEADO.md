@@ -184,8 +184,12 @@ macho-macho**:
 
 | Servo | Cable | Va a |
 |---|---|---|
-| marrón (−) | negro | borne **GND** del L298N (aflojar el tornillo, meter junto al que ya está, apretar) |
-| rojo (+) | **naranja** | borne **5V** del L298N |
+| marrón (−) | negro | borne **GND** del L298N: el **del medio** de los tres, junto al negro de la batería (aflojar, meter, apretar) |
+| rojo (+) | **naranja** | borne **5V** del L298N: el de los tres que hoy está **vacío** (el de la punta, del lado de los pines ENA–ENB) |
+
+Los tres bornes juntos del L298N son, en orden: **12V** (los rojos de la batería) · **GND** (el negro de la
+batería) · **5V** (vacío). Con el puente (jumper) puesto, ese 5V **sale** del L298N: nunca se le mete
+corriente de otro lado.
 | amarillo (señal) | amarillo | pin **7** del Arduino |
 
 ---
@@ -245,7 +249,7 @@ Uno lee, otro sigue el cable con el dedo:
 
 - **Encoders**: girar cada rueda despacito con la mano. **La segunda lucecita del sensor
   parpadea** con cada agujero. Uno gira una vuelta entera, otro cuenta: tiene que dar los
-  agujeros del disco (suelen ser **20**). Anotarlo.
+  agujeros del disco: el de Roli tiene **22 ranuras**, así que tienen que ser **22**.
 - **Zumbador**: sacar el violeta del pin 8 y tocar con su punta un **GND**: si suena seguido es
   **activo**; si hace «clic» es **pasivo**. Anotarlo y volver a ponerlo en el 8.
 
@@ -260,8 +264,8 @@ Uno lee, otro sigue el cable con el dedo:
 | Orden | Qué tiene que pasar |
 |---|---|
 | `info` | dice el nivel, **cuántos agujeros contó cada rueda**, la **batería** y pita |
-| girar la rueda izquierda una vuelta con la mano, `info` | **izq** subió unos 20 |
-| girar la derecha, `info` | **der** subió unos 20 |
+| girar la rueda izquierda una vuelta con la mano, `info` | **izq** subió **22** (una vuelta = 22 ranuras) |
+| girar la derecha, `info` | **der** subió **22** |
 | `bateria` | dice los voltios (unos 7,4 a 8,4 con cargadas) y el % |
 | `mirar izq` / `mirar der` | el **cuello** gira (ya con el pin 7) |
 | `distancia` | el sensor de adelante dice centímetros |
