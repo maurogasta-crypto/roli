@@ -12,4 +12,4 @@ python3 make_guia3.py  ../Roli_guia_nivel3.pdf
 python3 make_guia6.py  ../Roli_guia_nivel6.pdf
 ```
 
-**Al día con el firmware del 14-nov-2026** (sensor trasero, zigzag, empujón y enderezado, `explorar`, `girar`, `calibrar`, `desvio` y la `sesion` de la consola). Lo que se escribe en la consola sale de la ayuda de `firmware/roli_programa.ino`: si cambia una palabra allá, hay que cambiar el texto acá y regenerar los PDF.
+**Al día con el firmware del 18-nov-2026** (el cableado nuevo: servo en el 7 y al 5V del L298N, encoders en 2 y 3, zumbador en 8, medidor de batería; la guía de armado es `docs/CABLEADO.md`; antes, el 14-nov: sensor trasero, zigzag, empujón y enderezado, `explorar`, `girar`, `calibrar`, `desvio` y la `sesion` de la consola). Lo que se escribe en la consola sale de la ayuda de `firmware/roli_programa.ino`: si cambia una palabra allá, hay que cambiar el texto acá y regenerar los PDF.

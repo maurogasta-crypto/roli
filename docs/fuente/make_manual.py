@@ -129,7 +129,11 @@ def diagrama_bloques():
     # servo
     caja(0, 20, 100, 34, "Servo SG90", colors.HexColor("#3F7FBF"), fs=8.5)
     lin(100, 36, 155, 36)
-    txt(128, 42, "3")
+    txt(128, 42, "7")   # 18-nov-2026: del 3 al 7 (el 2 y el 3, para los encoders)
+    # encoders y zumbador (18-nov-2026)
+    caja(0, 62, 100, 34, "Encoders · zumbador", colors.HexColor("#2F6B3F"), fs=8.5)
+    lin(100, 80, 155, 80)
+    txt(128, 86, "2 3 · 8")
     return d
 
 
@@ -245,14 +249,17 @@ def build(path):
         ["L298N: ENA y ENB", "puentes (jumpers) puestos", "no van al Arduino"],
         ["Sensor HC-SR04", "Trig  ·  Echo", "A0  ·  A1 (pines analógicos, confirmado en las fotos)"],
         ["Sensor HC-SR04 de atrás (fijo)", "Trig  ·  Echo", "A3  ·  A4 (el que mira hacia atrás, sin servo)"],
-        ["Servo SG90", "señal (naranja)", "pin 3"],
-        ["Electricidad hoy", "Baterías: borne 12V y GND del L298N", "en paralelo, al pin <b>VIN</b> y GND del Arduino. El Arduino saca de ahí sus 5 V para el Bluetooth, el sensor y el servo. El borne 5V del L298N queda libre"],
+        ["Servo SG90", "señal (amarillo)  ·  + (rojo)", "pin <b>7</b>  ·  borne <b>5V del L298N</b> (desde el 18-nov)"],
+        ["Encoders de las ruedas", "DO izquierdo  ·  DO derecho", "pin 2  ·  pin 3"],
+        ["Zumbador", "I/O (suena con LOW)", "pin 8"],
+        ["Medidor de batería", "10 kΩ de VIN a A2 y 10 kΩ de A2 a GND", "A2"],
+        ["Electricidad hoy", "Baterías: borne 12V y GND del L298N", "en paralelo, al pin <b>VIN</b> y GND del Arduino. El Arduino saca de ahí sus 5 V para el Bluetooth, los sensores, los encoders y el zumbador; el servo, del borne 5V del L298N. La guía para soldar los arneses: docs/CABLEADO.md"],
         ["Masa común", "GND del L298N", "GND del Arduino"],
     ], [CW * 0.28, CW * 0.26, CW * 0.46]))
     s.append(Spacer(1, 6))
     s.append(callout("OJO CON ESTAS TRES COSAS",
                      "<b>1.</b> Los puentecitos (jumpers) de ENA y ENB del L298N <b>se dejan puestos</b>, mientras los cables vayan a IN1-IN4 como hoy. "
-                     "<b>2.</b> Las baterías ya entran al <b>VIN</b> del Arduino: está bien así. No conectes además el borne 5V del L298N al pin 5V (dos reguladores peleándose). Roli funciona sin USB; con el USB puesto también es seguro. "
+                     "<b>2.</b> Las baterías ya entran al <b>VIN</b> del Arduino: está bien así. Nunca unas el borne 5V del L298N con el pin 5V del Arduino (dos reguladores peleándose): el del L298N es sólo para el servo. Roli funciona sin USB; con el USB puesto también es seguro. "
                      "<b>3.</b> Si Roli se reinicia solo al mover el servo, ponerle un capacitor de 470 µF entre 5V y GND, cerca del servo. Si algún motor gira al revés, la orden <b>probar</b> y los “mapas” de pines del programa lo arreglan.",
                      bg=colors.HexColor("#FDE7E4"), color=RED))
     s.append(Spacer(1, 4))

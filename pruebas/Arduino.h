@@ -15,6 +15,11 @@ typedef uint8_t byte;
 #define LOW 0
 #define OUTPUT 1
 #define INPUT 0
+#define RISING 3
+#define digitalPinToInterrupt(p) ((p) == 2 ? 0 : ((p) == 3 ? 1 : -1))
+inline void attachInterrupt(int, void (*)(), int) {}
+inline void noInterrupts() {}
+inline void interrupts() {}
 #define constrain(amt, low, high) ((amt) < (low) ? (low) : ((amt) > (high) ? (high) : (amt)))
 class __FlashStringHelper;
 #define F(x) (reinterpret_cast<const __FlashStringHelper*>(x))

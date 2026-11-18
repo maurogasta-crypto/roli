@@ -22,10 +22,14 @@ Robot Arduino UNO que Mauro armó con sus hijos Yacko y Kala (10 y 7 años) para
 ## Cableado (MAPA_PINES 1)
 
 - Motores en L298N: izquierdo IN1=5, IN2=6; derecho IN3=9, IN4=10 (jumpers de ENA/ENB puestos)
-- Sensor delantero HC-SR04: Trig A0, Echo A1; servo en el pin 3
+- Sensor delantero HC-SR04: Trig A0, Echo A1; **servo en el pin 7** (desde el 18-nov; antes el 3), con su + al **borne 5V del L298N**
 - Sensor trasero HC-SR04 (fijo): Trig A3, Echo A4
 - Bluetooth BLE en 11 (RX) y 12 (TX)
+- **Encoders** (sensores de horquilla con disco ranurado): izquierdo DO → **2**, derecho DO → **3** (las dos interrupciones del UNO); `info` muestra cuántos agujeros contó cada rueda
+- **Zumbador** (se activa con LOW): I/O → **8**; dos pitidos al despertar
+- **Medidor de batería**: VIN –10 kΩ– **A2** –10 kΩ– GND (`HAY_MEDIDOR_BATERIA = true`); `bateria` e `info` lo dicen
 - Baterías 2×18650 en serie a 12V/GND del L298N y a VIN/GND del Arduino
+- Sin protoboard: los 5 V y los GND compartidos van en **arneses con empalmes soldados**. La guía paso a paso para hacerlo con los chicos, con el código de colores: [`docs/CABLEADO.md`](docs/CABLEADO.md)
 
 ## Cómo se carga
 

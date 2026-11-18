@@ -37,6 +37,14 @@
    Servo SG90   senal -> 3          senal -> 3         (nivel 5 en adelante)
    HC-SR04 trasero (opcional) TRIG2=A3, ECHO2=A4  (frena al ir hacia atras; nivel 5)
 
+  CABLEADO DEL 18-NOV-2026 (el de la guia "docs/CABLEADO.md", igual en los 3 mapas):
+   Servo SG90    senal -> 7  (antes el 3: el 2 y el 3 quedan para las ruedas)
+                 su + al borne 5V del L298N, no al 5V del Arduino
+   Encoder izq   DO -> 2     Encoder der   DO -> 3   (los unicos pines que avisan solos)
+   Zumbador      I/O -> 8    (suena con LOW: "nivel bajo")
+   Bateria       VIN -[10k]- A2 -[10k]- GND
+   La palabra "info" muestra cuantos agujeros conto cada rueda y la bateria.
+
   Nota tecnica: el servo se mueve con pulsos propios (sin la libreria
   Servo) porque esa libreria desactiva la velocidad (PWM) de los pines 9 y
   10, que son los del motor derecho.
@@ -63,7 +71,7 @@ const bool INVERTIR_DER = false;
 
 // ---------- Pines ----------
 SoftwareSerial miBT(11, 12);       // 11 = RX (recibe), 12 = TX (envia)
-const byte SERVO_PIN = 3;          // servo del "cuello"
+const byte SERVO_PIN = 7;          // servo del "cuello" (18-nov: del 3 al 7, el 3 es de la rueda derecha)
 const byte LED = 13;               // led de la placa
 #if MAPA_PINES == 1
 // Mapa 1 (Roli): el L298N tiene puestos los puentes de ENA y ENB;
@@ -103,9 +111,33 @@ const int SERVO_FRENTE = 80, SERVO_IZQ = 140, SERVO_DER = 20;  // si mira al rev
 
 // Medidor de bateria (opcional). Se arma con dos resistencias: del pin VIN a A2 va
 // R_ALTA, y de A2 a GND va R_BAJA. Cuando las conectes, cambia a true.
-const bool HAY_MEDIDOR_BATERIA = false;
+const bool HAY_MEDIDOR_BATERIA = true;            // 18-nov-2026: armado con dos de 10k
 const byte PIN_BATERIA = A2;
 const float R_ALTA = 10000.0, R_BAJA = 10000.0;   // ohmios (pueden ser 10k y 10k)
+
+// Zumbador (18-nov-2026): modulo de 3 patas que suena con LOW ("nivel bajo").
+// Si todavia no esta conectado, deja HAY_ZUMBADOR en false.
+const bool HAY_ZUMBADOR = true;
+const byte ZUMBADOR = 8;
+
+// Encoders de las ruedas (18-nov-2026): un sensor de horquilla por rueda, con el disco
+// ranurado. Cada agujero que pasa es un "tic". Van en el 2 y el 3, los dos unicos pines del
+// UNO que avisan solos (interrupciones) aunque el programa este haciendo otra cosa.
+const bool HAY_ENCODERS = true;
+const byte ENC_IZQ = 2, ENC_DER = 3;
+volatile unsigned long ticsIzq = 0, ticsDer = 0;
+void ticIzq() { ticsIzq++; }
+void ticDer() { ticsDer++; }
+
+// Un pitido que suena igual con zumbador activo o pasivo: una onda cuadrada de 2 kHz.
+void pitido(unsigned int ms) {
+  if (!HAY_ZUMBADOR) return;
+  for (unsigned long i = 0; i < (unsigned long)ms * 2; i++) {
+    digitalWrite(ZUMBADOR, LOW);  delayMicroseconds(250);
+    digitalWrite(ZUMBADOR, HIGH); delayMicroseconds(250);
+  }
+  digitalWrite(ZUMBADOR, HIGH);    // HIGH = callado
+}
 
 // ---------- Estado general ----------
 struct Linea { char b[LINEA_MAX]; byte n; unsigned long t; };
@@ -844,6 +876,13 @@ void ejecutar(char* l, bool enPrograma) {
   else if (!strcmp(pal, "info")) {
     s->print(F("Roli | NIVEL ")); s->print(NIVEL);
     s->print(F(" | MAPA ")); s->println(MAPA_PINES);
+    if (HAY_ENCODERS) {               // 18-nov: girar una rueda con la mano y mirar cuanto cuenta
+      noInterrupts(); unsigned long ti = ticsIzq, td = ticsDer; interrupts();
+      s->print(F("Ruedas (agujeros contados): izq ")); s->print((long)ti);
+      s->print(F(" | der ")); s->println((long)td);
+    }
+    if (HAY_MEDIDOR_BATERIA) reportarBateria();
+    pitido(80);
   }
 #if NIVEL >= 2
   else if (!strcmp(pal, "probar")) {
@@ -1068,6 +1107,12 @@ void setup() {
   Serial.begin(9600);
   miBT.begin(9600);
   pinMode(LED, OUTPUT);
+  if (HAY_ZUMBADOR) { pinMode(ZUMBADOR, OUTPUT); digitalWrite(ZUMBADOR, HIGH); }
+  if (HAY_ENCODERS) {
+    pinMode(ENC_IZQ, INPUT); pinMode(ENC_DER, INPUT);
+    attachInterrupt(digitalPinToInterrupt(ENC_IZQ), ticIzq, RISING);
+    attachInterrupt(digitalPinToInterrupt(ENC_DER), ticDer, RISING);
+  }
 #if NIVEL >= 2
   pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
@@ -1094,6 +1139,7 @@ void setup() {
   Serial.println(hayCal ? F("Calibracion guardada: cargada") : F("Calibracion: el cero de fabrica"));
 #endif
   Serial.println(F("Escribe: hola"));
+  pitido(120); delay(80); pitido(120);     // Roli se despierta: dos pitidos
 }
 
 void loop() {

@@ -12,6 +12,8 @@ void digitalWrite(byte p, byte v) { pins[p] = v ? 256 : 0; }
 void analogWrite(byte p, int v) { pins[p] = v; }
 long distSim = 100;
 unsigned long pulseIn(byte, byte, unsigned long) { return distSim == 0 ? 0 : distSim * 58; }
+int analogRead(byte) { return 840; }   // 18-nov: info dice la bateria (unos 8,2 V con 10k y 10k)
+size_t Print::print(double v, int d) { printf("%.*f", d, v); return 0; }
 size_t Print::print(const char* s) { fputs(s, stdout); return 0; }
 size_t Print::print(const __FlashStringHelper* s) { fputs((const char*)s, stdout); return 0; }
 size_t Print::print(int v) { printf("%d", v); return 0; }

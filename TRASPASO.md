@@ -25,10 +25,10 @@ Robot Arduino UNO que Mauro armó con sus hijos Yacko (10) y Kala (7) para apren
 ## 3 · Cableado real (MAPA_PINES 1)
 
 - **Motores:** L298N HW-095 con los jumpers de ENA/ENB puestos; cables en IN1–IN4. Izquierdo IN1=5, IN2=6; derecho IN3=9, IN4=10. La velocidad (PWM) va por los mismos pines IN.
-- **Sensor delantero HC-SR04:** Trig A0, Echo A1. **Servo SG90:** señal en el pin 3, con pulsos propios (544–2400 µs) porque `Servo.h` desactiva el PWM de los pines 9 y 10.
+- **Sensor delantero HC-SR04:** Trig A0, Echo A1. **Servo SG90:** señal en el pin **7** desde el 18-nov-2026 (antes el 3: el 2 y el 3 son ahora de los encoders), alimentado del **borne 5V del L298N**, con pulsos propios (544–2400 µs) porque `Servo.h` desactiva el PWM de los pines 9 y 10.
 - **Sensor trasero HC-SR04** (fijo, sin servo): Trig A3, Echo A4.
 - **Bluetooth BLE:** módulo en 11 (RX) y 12 (TX), 9600. Aparece como "HC-06" pero es BLE (servicio FFE0/FFE1). Una conexión a la vez: el celular tiene que estar desconectado. Sin divisor 1k/2k en el RX del módulo (anda).
-- **Energía:** 2×18650 en serie (7,4–8,4 V) a los bornes 12V y GND del L298N, y en paralelo al VIN y GND del Arduino. El regulador del Arduino alimenta la barra de 5 V (sensores, servo, BLE). El borne 5V del L298N queda libre. USB y baterías juntos es seguro.
+- **Energía:** 2×18650 en serie (7,4–8,4 V) a los bornes 12V y GND del L298N, y en paralelo al VIN y GND del Arduino. El regulador del Arduino alimenta el arnés de 5 V (sensores, encoders, zumbador, BLE); desde el 18-nov el **servo come del borne 5V del L298N** (su regulador, que estaba libre), así sus picos no reinician el Arduino; los GND, unidos. Sin protoboard: arneses soldados (`docs/CABLEADO.md`). Encoders en 2 y 3, zumbador en 8, medidor de batería en A2 (10k/10k). USB y baterías juntos es seguro.
 - **Pines libres:** 2, 4, 7, 8, 13 (el 13 es el LED de la placa) y A2 (reservado al medidor de batería) y A5.
 
 ## 4 · Parámetros calibrados en el robot
