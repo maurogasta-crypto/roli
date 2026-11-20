@@ -206,11 +206,11 @@ macho-macho**:
 |---|---|---|
 | marrón (−) | negro | borne **GND** del L298N: el **del medio** de los tres, junto al negro de la batería (aflojar, meter, apretar) |
 | rojo (+) | **naranja** | borne **5V** del L298N: el de los tres que hoy está **vacío** (el de la punta, del lado de los pines ENA–ENB) |
+| amarillo (señal) | amarillo | pin **7** del Arduino |
 
 Los tres bornes juntos del L298N son, en orden: **12V** (los rojos de la batería) · **GND** (el negro de la
 batería) · **5V** (vacío). Con el puente (jumper) puesto, ese 5V **sale** del L298N: nunca se le mete
 corriente de otro lado.
-| amarillo (señal) | amarillo | pin **7** del Arduino |
 
 ---
 
