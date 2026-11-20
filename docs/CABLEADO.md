@@ -197,6 +197,11 @@ Sale del otro **GND** del Arduino:
 Las dos son iguales (10 kΩ): da lo mismo cuál es la de arriba. Así el Arduino mide la
 **mitad** de la batería (unos 4 V), que es lo que aguanta su pin.
 
+**Otra forma, la misma conexión:** la resistencia de arriba también puede tomar el + de las
+baterías **directo del borne «12V» del L298N** (apretada junto al rojo de la batería, con una
+punta macho), en vez del empalme cerca del VIN: es el mismo punto eléctrico. La de abajo siempre
+va a **GND**, y el medio a **A2**. **Nunca** al borne 5V del L298N.
+
 ### Arnés 5 · el servo
 
 El servo tiene su ficha de 3 (marrón, rojo, amarillo). Se le enchufan **tres cables
@@ -208,9 +213,42 @@ macho-macho**:
 | rojo (+) | **naranja** | borne **5V** del L298N: el de los tres que hoy está **vacío** (el de la punta, del lado de los pines ENA–ENB) |
 | amarillo (señal) | amarillo | pin **7** del Arduino |
 
+**La alimentación del servo, en una línea:** el **+ (rojo)** va al borne **5V** del L298N (su salida,
+con el puente de 5V puesto); el **− (marrón)** va a **GND**, que es el mismo punto que todos los GND
+(la guía lo manda al borne GND del medio del L298N, para que la corriente del servo vuelva directo a
+la batería y no por los cables finitos del Arduino); la señal, al **7**. Si las baterías bajan de unos
+**7 V**, ese 5V cae y el servo se pone flojo: por eso se mide en el paso 7.
+
 Los tres bornes juntos del L298N son, en orden: **12V** (los rojos de la batería) · **GND** (el negro de la
 batería) · **5V** (vacío). Con el puente (jumper) puesto, ese 5V **sale** del L298N: nunca se le mete
 corriente de otro lado.
+
+### El zumbador (el módulo de tres patas)
+
+La placa trae impresos **GND · I/O · VCC** (en ese orden, de izquierda a derecha en la foto del 19-nov;
+GND y VCC quedan en los extremos: mirar antes de enchufar, es fácil invertirlos).
+
+| Pata | Va a | Cable |
+|---|---|---|
+| **GND** | el arnés **2** (un GND del Arduino, que comparte con la batería) | negro |
+| **VCC** | el arnés **1** (el pin **5V del Arduino**, **no** el borne 5V del L298N) | rojo |
+| **I/O** | pin **8** del Arduino | violeta |
+
+La placa dice «低电平触发»: se **activa con nivel bajo**. El programa ya lo maneja (el pin 8 queda alto
+en reposo y baja para sonar): no hay que hacer nada especial. Al arrancar, Roli tiene que **pitar dos veces**.
+
+### Los cables del motor que «ya están» (no se tocan)
+
+Son **dos grupos**, y no hay que confundirlos:
+
+| Grupo | Qué es | Cuántos |
+|---|---|---|
+| **Señal** (finitos, dupont) | Arduino → fila de pines del L298N `ENA IN1 IN2 IN3 IN4 ENB`: pin **5 → IN1**, **6 → IN2** (motor izquierdo), **9 → IN3**, **10 → IN4** (motor derecho) | 4 |
+| **Potencia** (los del motor) | cada motor amarillo con sus dos cables a un borne azul de tornillo de arriba del L298N (OUT1–OUT2 y OUT3–OUT4) | 2 + 2 |
+
+Con el **mapa 1** del programa (el que viene por defecto), los **puentes de ENA y ENB** del L298N tienen
+que estar **puestos**. Izquierda = el motor del lado del Bluetooth; derecha = el del zumbador. Los pines
+**5, 6, 9 y 10** no se usan para nada más.
 
 ---
 
