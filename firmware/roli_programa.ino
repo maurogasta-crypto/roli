@@ -51,6 +51,7 @@
 */
 
 #include <SoftwareSerial.h>
+struct Linea;                    // aviso para el IDE de Arduino: sus prototipos automaticos usan Linea antes de su definicion (linea ~143)
 
 // >>> CAMBIA ESTE NUMERO (1 a 6) PARA DESBLOQUEAR PALABRAS NUEVAS <<<
 #define NIVEL 6
